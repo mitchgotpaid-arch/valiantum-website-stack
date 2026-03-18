@@ -16,15 +16,18 @@
         }
 
         :root {
-            --color-bg: #0a0a0f;
-            --color-surface: #12121a;
-            --color-surface-hover: #1a1a25;
-            --color-border: #1e1e2e;
-            --color-text: #e4e4e7;
-            --color-text-muted: #8b8b9e;
-            --color-accent: #6366f1;
-            --color-accent-hover: #818cf8;
+            --color-bg: #080b14;
+            --color-surface: #0e1220;
+            --color-surface-hover: #151b2e;
+            --color-border: #1a2138;
+            --color-text: #c8d0e0;
+            --color-text-muted: #6b7a99;
+            --color-accent: #0ea5e9;
+            --color-accent-hover: #38bdf8;
+            --color-accent-dark: #0369a1;
+            --color-blue-deep: #1e3a5f;
             --color-white: #ffffff;
+            --color-gray-dark: #3a3f4e;
             --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
@@ -47,24 +50,32 @@
             left: 0;
             right: 0;
             z-index: 100;
-            padding: 1.25rem 2rem;
+            padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(10, 10, 15, 0.8);
+            background: rgba(8, 11, 20, 0.85);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--color-border);
         }
 
-        .logo {
-            font-size: 1.35rem;
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            text-decoration: none;
+        }
+
+        .nav-logo img {
+            height: 52px;
+            width: auto;
+        }
+
+        .nav-logo-text {
+            font-size: 1.25rem;
             font-weight: 800;
             letter-spacing: -0.5px;
             color: var(--color-white);
-        }
-
-        .logo span {
-            color: var(--color-accent);
         }
 
         .nav-links {
@@ -120,13 +131,20 @@
         .hero::before {
             content: '';
             position: absolute;
-            top: -40%;
+            top: -30%;
             left: 50%;
             transform: translateX(-50%);
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, rgba(3, 105, 161, 0.05) 40%, transparent 70%);
             pointer-events: none;
+        }
+
+        .hero-logo {
+            width: 120px;
+            height: auto;
+            margin-bottom: 2rem;
+            filter: drop-shadow(0 0 40px rgba(14, 165, 233, 0.2));
         }
 
         .hero-badge {
@@ -145,7 +163,7 @@
         .hero-badge .dot {
             width: 6px;
             height: 6px;
-            background: #22c55e;
+            background: var(--color-accent);
             border-radius: 50%;
         }
 
@@ -160,7 +178,7 @@
         }
 
         .hero h1 .gradient {
-            background: linear-gradient(135deg, var(--color-accent), #a78bfa);
+            background: linear-gradient(135deg, var(--color-accent), #38bdf8, #7dd3fc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -189,16 +207,19 @@
             transition: all 0.2s;
             text-decoration: none;
             border: none;
+            display: inline-block;
         }
 
         .btn-primary {
-            background: var(--color-accent);
+            background: linear-gradient(135deg, var(--color-accent-dark), var(--color-accent));
             color: var(--color-white);
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25);
         }
 
         .btn-primary:hover {
-            background: var(--color-accent-hover);
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
             transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.35);
         }
 
         .btn-secondary {
@@ -209,7 +230,7 @@
 
         .btn-secondary:hover {
             background: var(--color-surface-hover);
-            border-color: #2a2a3e;
+            border-color: var(--color-accent-dark);
         }
 
         /* ---- SECTIONS ---- */
@@ -260,16 +281,19 @@
             border-radius: 16px;
             padding: 2rem;
             transition: all 0.3s;
+            text-decoration: none;
+            display: block;
         }
 
         .product-card:hover {
-            border-color: #2e2e44;
+            border-color: rgba(14, 165, 233, 0.3);
             transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(14, 165, 233, 0.08);
         }
 
         .product-card.featured {
             border-color: var(--color-accent);
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), var(--color-surface));
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.06), var(--color-surface));
         }
 
         .product-icon {
@@ -288,7 +312,7 @@
         }
 
         .product-icon.dugout {
-            background: rgba(59, 130, 246, 0.15);
+            background: rgba(14, 165, 233, 0.15);
         }
 
         .product-icon.nati {
@@ -303,7 +327,7 @@
             letter-spacing: 1px;
             padding: 0.25rem 0.6rem;
             border-radius: 6px;
-            background: rgba(99, 102, 241, 0.15);
+            background: rgba(14, 165, 233, 0.15);
             color: var(--color-accent);
             margin-bottom: 1rem;
         }
@@ -319,6 +343,21 @@
             color: var(--color-text-muted);
             font-size: 0.95rem;
             line-height: 1.65;
+        }
+
+        .product-card .visit-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-accent);
+            transition: gap 0.2s;
+        }
+
+        .product-card:hover .visit-link {
+            gap: 0.65rem;
         }
 
         /* ---- ABOUT ---- */
@@ -347,6 +386,13 @@
             font-weight: 800;
             color: var(--color-white);
             margin-bottom: 0.25rem;
+        }
+
+        .stat-card .number.accent {
+            background: linear-gradient(135deg, var(--color-accent), #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .stat-card .label {
@@ -406,10 +452,10 @@
         .form-success {
             display: none;
             padding: 1rem;
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid rgba(14, 165, 233, 0.3);
             border-radius: 10px;
-            color: #22c55e;
+            color: var(--color-accent);
             font-size: 0.9rem;
         }
 
@@ -421,7 +467,31 @@
         footer {
             padding: 3rem 2rem;
             border-top: 1px solid var(--color-border);
-            text-align: center;
+        }
+
+        .footer-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .footer-logo img {
+            height: 28px;
+            width: auto;
+        }
+
+        .footer-logo-text {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--color-white);
         }
 
         footer p {
@@ -429,8 +499,21 @@
             font-size: 0.85rem;
         }
 
-        footer .logo {
-            margin-bottom: 1rem;
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--color-accent);
         }
 
         /* ---- MOBILE ---- */
@@ -446,7 +529,7 @@
                 left: 0;
                 right: 0;
                 flex-direction: column;
-                background: rgba(10, 10, 15, 0.95);
+                background: rgba(8, 11, 20, 0.95);
                 backdrop-filter: blur(20px);
                 padding: 1.5rem 2rem;
                 border-bottom: 1px solid var(--color-border);
@@ -476,6 +559,17 @@
             .products-grid {
                 grid-template-columns: 1fr;
             }
+
+            .footer-inner {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -483,7 +577,9 @@
 
     <!-- NAV -->
     <nav>
-        <div class="logo">Valiantum<span>.</span></div>
+        <a href="#" class="nav-logo">
+            <img src="logo.png" alt="Valiantum">
+        </a>
         <ul class="nav-links" id="navLinks">
             <li><a href="#products">Products</a></li>
             <li><a href="#about">About</a></li>
@@ -498,6 +594,7 @@
 
     <!-- HERO -->
     <section class="hero">
+        <img src="logo.png" alt="Valiantum" class="hero-logo">
         <div class="hero-badge">
             <span class="dot"></span>
             Digital Media Company
@@ -518,24 +615,27 @@
             <p class="section-desc">From smart kitchen tools to sports media — we build products and platforms that serve real communities.</p>
 
             <div class="products-grid">
-                <div class="product-card featured">
+                <a href="https://pantrywiseapp.com" target="_blank" rel="noopener" class="product-card featured">
                     <div class="product-icon pantrywise">🥘</div>
                     <span class="badge">Flagship Product</span>
                     <h3>PantryWise</h3>
                     <p>A smart pantry management app that helps you track what you have, reduce food waste, and plan meals around ingredients you already own. Available on iOS and Android.</p>
-                </div>
+                    <span class="visit-link">Visit pantrywiseapp.com &rarr;</span>
+                </a>
 
-                <div class="product-card">
+                <a href="https://divisiondugout.com" target="_blank" rel="noopener" class="product-card">
                     <div class="product-icon dugout">⚾</div>
                     <h3>Division Dugout</h3>
                     <p>An MLB blog and content platform delivering in-depth analysis, takes, and stories for baseball fans who want more than just box scores.</p>
-                </div>
+                    <span class="visit-link">Visit divisiondugout.com &rarr;</span>
+                </a>
 
-                <div class="product-card">
+                <a href="https://natisports.net" target="_blank" rel="noopener" class="product-card">
                     <div class="product-icon nati">🏈</div>
                     <h3>Nati Sports</h3>
                     <p>A Cincinnati fandom company covering the Bengals, Reds, FC Cincinnati, and Bearcats — built by Cincy fans, for Cincy fans.</p>
-                </div>
+                    <span class="visit-link">Visit natisports.net &rarr;</span>
+                </a>
             </div>
         </div>
     </section>
@@ -552,19 +652,19 @@
                 </div>
                 <div class="about-stats">
                     <div class="stat-card">
-                        <div class="number">3</div>
+                        <div class="number accent">3</div>
                         <div class="label">Products &amp; Brands</div>
                     </div>
                     <div class="stat-card">
-                        <div class="number">1</div>
+                        <div class="number accent">1</div>
                         <div class="label">Flagship App</div>
                     </div>
                     <div class="stat-card">
-                        <div class="number">2</div>
+                        <div class="number accent">2</div>
                         <div class="label">Media Brands</div>
                     </div>
                     <div class="stat-card">
-                        <div class="number">&#8734;</div>
+                        <div class="number accent">&#8734;</div>
                         <div class="label">Passion for Cincy</div>
                     </div>
                 </div>
@@ -603,8 +703,17 @@
 
     <!-- FOOTER -->
     <footer>
-        <div class="logo">Valiantum<span>.</span></div>
-        <p>&copy; 2026 Valiantum LLC. All rights reserved.</p>
+        <div class="footer-inner">
+            <div class="footer-logo">
+                <img src="logo.png" alt="Valiantum">
+            </div>
+            <ul class="footer-links">
+                <li><a href="https://pantrywiseapp.com" target="_blank" rel="noopener">PantryWise</a></li>
+                <li><a href="https://divisiondugout.com" target="_blank" rel="noopener">Division Dugout</a></li>
+                <li><a href="https://natisports.net" target="_blank" rel="noopener">Nati Sports</a></li>
+            </ul>
+            <p>&copy; 2026 Valiantum LLC. All rights reserved.</p>
+        </div>
     </footer>
 
     <script>
@@ -630,17 +739,14 @@
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            // Collect form data
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
             const message = document.getElementById('message').value;
 
-            // For now, open a mailto link as a simple email submission
             const subject = encodeURIComponent(`Contact from ${name}`);
             const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
             window.location.href = `mailto:contact@valiantum.com?subject=${subject}&body=${body}`;
 
-            // Show success message
             success.classList.add('show');
             form.reset();
 
