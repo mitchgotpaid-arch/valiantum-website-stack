@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Valiantum LLC — Digital Media Company</title>
-    <meta name="description" content="Valiantum LLC is a digital media company building products like PantryWise, Division Dugout, and Nati Sports.">
+    <meta name="description" content="Valiantum LLC is a digital media company building products like PantryWise, BaseSense, Division Dugout, and Nati Sports.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,24 +16,22 @@
         }
 
         :root {
-            --color-bg: #080b14;
-            --color-surface: #0e1220;
-            --color-surface-hover: #151b2e;
-            --color-border: #1a2138;
+            --color-bg: #060910;
+            --color-surface: #0b0f1c;
+            --color-surface-2: #0f1626;
+            --color-surface-hover: #131a2e;
+            --color-border: #162038;
+            --color-border-subtle: #0f1828;
             --color-text: #c8d0e0;
-            --color-text-muted: #6b7a99;
+            --color-text-muted: #5a6a88;
             --color-accent: #0ea5e9;
             --color-accent-hover: #38bdf8;
             --color-accent-dark: #0369a1;
-            --color-blue-deep: #1e3a5f;
             --color-white: #ffffff;
-            --color-gray-dark: #3a3f4e;
             --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
+        html { scroll-behavior: smooth; }
 
         body {
             font-family: var(--font);
@@ -41,22 +39,35 @@
             color: var(--color-text);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* ---- GRID BACKGROUND ---- */
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
         }
 
         /* ---- NAV ---- */
         nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             z-index: 100;
-            padding: 1rem 2rem;
+            padding: 0.9rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(8, 11, 20, 0.85);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--color-border);
+            background: rgba(6, 9, 16, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(14, 165, 233, 0.08);
+            transition: background 0.3s;
         }
 
         .nav-logo {
@@ -66,17 +77,7 @@
             text-decoration: none;
         }
 
-        .nav-logo img {
-            height: 52px;
-            width: auto;
-        }
-
-        .nav-logo-text {
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            color: var(--color-white);
-        }
+        .nav-logo img { height: 48px; width: auto; }
 
         .nav-links {
             display: flex;
@@ -87,14 +88,24 @@
         .nav-links a {
             color: var(--color-text-muted);
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             font-weight: 500;
             transition: color 0.2s;
+            position: relative;
         }
 
-        .nav-links a:hover {
-            color: var(--color-white);
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -3px; left: 0; right: 0;
+            height: 1px;
+            background: var(--color-accent);
+            transform: scaleX(0);
+            transition: transform 0.2s;
         }
+
+        .nav-links a:hover { color: var(--color-white); }
+        .nav-links a:hover::after { transform: scaleX(1); }
 
         .hamburger {
             display: none;
@@ -108,8 +119,7 @@
 
         .hamburger span {
             display: block;
-            width: 24px;
-            height: 2px;
+            width: 24px; height: 2px;
             background: var(--color-text);
             border-radius: 2px;
             transition: all 0.3s;
@@ -123,28 +133,38 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding: 8rem 2rem 4rem;
+            padding: 8rem 2rem 5rem;
             position: relative;
             overflow: hidden;
+            z-index: 1;
         }
 
-        .hero::before {
-            content: '';
+        .hero-glow {
             position: absolute;
-            top: -30%;
+            top: -10%;
             left: 50%;
             transform: translateX(-50%);
-            width: 700px;
-            height: 700px;
-            background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, rgba(3, 105, 161, 0.05) 40%, transparent 70%);
+            width: 900px; height: 900px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, rgba(3, 105, 161, 0.06) 35%, transparent 65%);
             pointer-events: none;
+            animation: pulse-glow 6s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.7; transform: translateX(-50%) scale(1.05); }
         }
 
         .hero-logo {
-            width: 120px;
-            height: auto;
+            width: 110px; height: auto;
             margin-bottom: 2rem;
-            filter: drop-shadow(0 0 40px rgba(14, 165, 233, 0.2));
+            filter: drop-shadow(0 0 50px rgba(14, 165, 233, 0.3));
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
         }
 
         .hero-badge {
@@ -152,50 +172,63 @@
             align-items: center;
             gap: 0.5rem;
             padding: 0.4rem 1rem;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
+            background: rgba(14, 165, 233, 0.08);
+            border: 1px solid rgba(14, 165, 233, 0.2);
             border-radius: 100px;
-            font-size: 0.8rem;
-            color: var(--color-text-muted);
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--color-accent);
             margin-bottom: 2rem;
+            letter-spacing: 0.5px;
         }
 
         .hero-badge .dot {
-            width: 6px;
-            height: 6px;
+            width: 6px; height: 6px;
             background: var(--color-accent);
             border-radius: 50%;
+            box-shadow: 0 0 8px var(--color-accent);
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
 
         .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-size: clamp(2.8rem, 6vw, 5rem);
             font-weight: 800;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
+            letter-spacing: -2px;
+            line-height: 1.05;
             color: var(--color-white);
-            max-width: 800px;
+            max-width: 820px;
             margin-bottom: 1.5rem;
         }
 
         .hero h1 .gradient {
-            background: linear-gradient(135deg, var(--color-accent), #38bdf8, #7dd3fc);
+            background: linear-gradient(135deg, #0ea5e9, #38bdf8, #7dd3fc, #bae6fd);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            background-size: 200% 200%;
+            animation: shimmer 4s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .hero p {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             color: var(--color-text-muted);
-            max-width: 560px;
+            max-width: 540px;
             margin-bottom: 2.5rem;
-            line-height: 1.7;
+            line-height: 1.75;
         }
 
-        .hero-cta {
-            display: flex;
-            gap: 1rem;
-        }
+        .hero-cta { display: flex; gap: 1rem; }
 
         .btn {
             padding: 0.75rem 1.75rem;
@@ -204,7 +237,7 @@
             font-weight: 600;
             font-family: var(--font);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s;
             text-decoration: none;
             border: none;
             display: inline-block;
@@ -213,29 +246,48 @@
         .btn-primary {
             background: linear-gradient(135deg, var(--color-accent-dark), var(--color-accent));
             color: var(--color-white);
-            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25);
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(14, 165, 233, 0.45);
         }
 
         .btn-secondary {
-            background: var(--color-surface);
+            background: rgba(255,255,255,0.04);
             color: var(--color-text);
             border: 1px solid var(--color-border);
+            backdrop-filter: blur(10px);
         }
 
         .btn-secondary:hover {
-            background: var(--color-surface-hover);
-            border-color: var(--color-accent-dark);
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(14, 165, 233, 0.3);
         }
+
+        /* ---- SCROLL ANIMATIONS ---- */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
 
         /* ---- SECTIONS ---- */
         section {
-            padding: 6rem 2rem;
+            padding: 7rem 2rem;
+            position: relative;
+            z-index: 1;
         }
 
         .container {
@@ -244,17 +296,26 @@
         }
 
         .section-label {
-            display: inline-block;
-            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.72rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 2px;
             color: var(--color-accent);
             margin-bottom: 1rem;
         }
 
+        .section-label::before {
+            content: '';
+            display: inline-block;
+            width: 16px; height: 1px;
+            background: var(--color-accent);
+        }
+
         .section-title {
-            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+            font-size: clamp(1.9rem, 3.5vw, 2.75rem);
             font-weight: 700;
             letter-spacing: -0.5px;
             color: var(--color-white);
@@ -264,42 +325,80 @@
         .section-desc {
             color: var(--color-text-muted);
             max-width: 560px;
-            line-height: 1.7;
+            line-height: 1.75;
             margin-bottom: 3.5rem;
         }
 
-        /* ---- COMPANIES / PRODUCTS ---- */
+        /* ---- DIVIDER ---- */
+        .section-divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.2), transparent);
+            margin: 0;
+        }
+
+        /* ---- PRODUCTS ---- */
+        #products {
+            background: linear-gradient(180deg, transparent 0%, rgba(14, 165, 233, 0.02) 50%, transparent 100%);
+        }
+
         .products-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.25rem;
         }
 
         .product-card {
-            background: var(--color-surface);
+            background: rgba(11, 15, 28, 0.7);
             border: 1px solid var(--color-border);
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 2rem;
-            transition: all 0.3s;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
             display: block;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            position: relative;
+            overflow: hidden;
         }
 
+        .product-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.04), transparent);
+            opacity: 0;
+            transition: opacity 0.35s;
+        }
+
+        .product-card:hover::before { opacity: 1; }
+
         .product-card:hover {
-            border-color: rgba(14, 165, 233, 0.3);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(14, 165, 233, 0.08);
+            border-color: rgba(14, 165, 233, 0.35);
+            transform: translateY(-5px);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(14, 165, 233, 0.05),
+                inset 0 1px 0 rgba(255,255,255,0.04);
         }
 
         .product-card.featured {
-            border-color: var(--color-accent);
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.06), var(--color-surface));
+            border-color: rgba(14, 165, 233, 0.4);
+            background: rgba(14, 165, 233, 0.04);
+        }
+
+        .product-card.featured::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.6), transparent);
         }
 
         .product-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
+            width: 52px; height: 52px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -307,17 +406,10 @@
             margin-bottom: 1.25rem;
         }
 
-        .product-icon.pantrywise {
-            background: rgba(34, 197, 94, 0.15);
-        }
-
-        .product-icon.dugout {
-            background: rgba(14, 165, 233, 0.15);
-        }
-
-        .product-icon.nati {
-            background: rgba(249, 115, 22, 0.15);
-        }
+        .product-icon.pantrywise { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.15); }
+        .product-icon.basesense  { background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.15); }
+        .product-icon.dugout     { background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(14, 165, 233, 0.15); }
+        .product-icon.nati       { background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.15); }
 
         .product-card .badge {
             display: inline-block;
@@ -325,15 +417,22 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 0.25rem 0.6rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 6px;
-            background: rgba(14, 165, 233, 0.15);
+            background: rgba(14, 165, 233, 0.12);
             color: var(--color-accent);
+            border: 1px solid rgba(14, 165, 233, 0.2);
             margin-bottom: 1rem;
         }
 
+        .product-card .badge.new {
+            background: rgba(168, 85, 247, 0.12);
+            color: #c084fc;
+            border-color: rgba(168, 85, 247, 0.2);
+        }
+
         .product-card h3 {
-            font-size: 1.25rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: var(--color-white);
             margin-bottom: 0.75rem;
@@ -341,74 +440,101 @@
 
         .product-card p {
             color: var(--color-text-muted);
-            font-size: 0.95rem;
-            line-height: 1.65;
+            font-size: 0.92rem;
+            line-height: 1.7;
         }
 
         .product-card .visit-link {
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            margin-top: 1.25rem;
-            font-size: 0.85rem;
+            margin-top: 1.5rem;
+            font-size: 0.83rem;
             font-weight: 600;
             color: var(--color-accent);
             transition: gap 0.2s;
         }
 
-        .product-card:hover .visit-link {
-            gap: 0.65rem;
-        }
+        .product-card:hover .visit-link { gap: 0.7rem; }
 
         /* ---- ABOUT ---- */
+        #about {
+            position: relative;
+        }
+
+        #about::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at 80% 50%, rgba(14, 165, 233, 0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
         .about-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4rem;
+            gap: 5rem;
             align-items: center;
         }
 
         .about-stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+            gap: 1rem;
         }
 
         .stat-card {
-            background: var(--color-surface);
+            background: rgba(11, 15, 28, 0.8);
             border: 1px solid var(--color-border);
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            transition: border-color 0.3s, transform 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.3), transparent);
+        }
+
+        .stat-card:hover {
+            border-color: rgba(14, 165, 233, 0.25);
+            transform: translateY(-2px);
         }
 
         .stat-card .number {
-            font-size: 1.75rem;
+            font-size: 2rem;
             font-weight: 800;
             color: var(--color-white);
             margin-bottom: 0.25rem;
         }
 
         .stat-card .number.accent {
-            background: linear-gradient(135deg, var(--color-accent), #38bdf8);
+            background: linear-gradient(135deg, var(--color-accent), #7dd3fc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .stat-card .label {
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: var(--color-text-muted);
         }
 
         /* ---- CONTACT ---- */
         #contact {
-            border-top: 1px solid var(--color-border);
+            background: linear-gradient(180deg, transparent, rgba(14, 165, 233, 0.02) 50%, transparent);
         }
 
         .contact-wrapper {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4rem;
+            gap: 5rem;
         }
 
         .contact-form {
@@ -419,7 +545,7 @@
 
         .form-group label {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 500;
             color: var(--color-text-muted);
             margin-bottom: 0.5rem;
@@ -428,20 +554,22 @@
         .form-group input,
         .form-group textarea {
             width: 100%;
-            padding: 0.75rem 1rem;
-            background: var(--color-surface);
+            padding: 0.8rem 1rem;
+            background: rgba(11, 15, 28, 0.8);
             border: 1px solid var(--color-border);
             border-radius: 10px;
             color: var(--color-text);
             font-family: var(--font);
             font-size: 0.9rem;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
             outline: none;
+            backdrop-filter: blur(10px);
         }
 
         .form-group input:focus,
         .form-group textarea:focus {
-            border-color: var(--color-accent);
+            border-color: rgba(14, 165, 233, 0.5);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
         }
 
         .form-group textarea {
@@ -452,21 +580,21 @@
         .form-success {
             display: none;
             padding: 1rem;
-            background: rgba(14, 165, 233, 0.1);
-            border: 1px solid rgba(14, 165, 233, 0.3);
+            background: rgba(14, 165, 233, 0.08);
+            border: 1px solid rgba(14, 165, 233, 0.25);
             border-radius: 10px;
             color: var(--color-accent);
             font-size: 0.9rem;
         }
 
-        .form-success.show {
-            display: block;
-        }
+        .form-success.show { display: block; }
 
         /* ---- FOOTER ---- */
         footer {
-            padding: 3rem 2rem;
-            border-top: 1px solid var(--color-border);
+            padding: 2.5rem 2rem;
+            border-top: 1px solid var(--color-border-subtle);
+            position: relative;
+            z-index: 1;
         }
 
         .footer-inner {
@@ -483,20 +611,11 @@
             gap: 0.5rem;
         }
 
-        .footer-logo img {
-            height: 28px;
-            width: auto;
-        }
-
-        .footer-logo-text {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: var(--color-white);
-        }
+        .footer-logo img { height: 26px; width: auto; opacity: 0.7; }
 
         footer p {
             color: var(--color-text-muted);
-            font-size: 0.85rem;
+            font-size: 0.82rem;
         }
 
         .footer-links {
@@ -508,37 +627,29 @@
         .footer-links a {
             color: var(--color-text-muted);
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             transition: color 0.2s;
         }
 
-        .footer-links a:hover {
-            color: var(--color-accent);
-        }
+        .footer-links a:hover { color: var(--color-accent); }
 
         /* ---- MOBILE ---- */
         @media (max-width: 768px) {
-            .hamburger {
-                display: flex;
-            }
+            .hamburger { display: flex; }
 
             .nav-links {
                 display: none;
                 position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
+                top: 100%; left: 0; right: 0;
                 flex-direction: column;
-                background: rgba(8, 11, 20, 0.95);
-                backdrop-filter: blur(20px);
+                background: rgba(6, 9, 16, 0.97);
+                backdrop-filter: blur(24px);
                 padding: 1.5rem 2rem;
                 border-bottom: 1px solid var(--color-border);
                 gap: 1rem;
             }
 
-            .nav-links.open {
-                display: flex;
-            }
+            .nav-links.open { display: flex; }
 
             .hero-cta {
                 flex-direction: column;
@@ -546,9 +657,7 @@
                 max-width: 320px;
             }
 
-            .btn {
-                text-align: center;
-            }
+            .btn { text-align: center; }
 
             .about-content,
             .contact-wrapper {
@@ -556,9 +665,7 @@
                 gap: 2.5rem;
             }
 
-            .products-grid {
-                grid-template-columns: 1fr;
-            }
+            .products-grid { grid-template-columns: 1fr; }
 
             .footer-inner {
                 flex-direction: column;
@@ -575,6 +682,8 @@
 </head>
 <body>
 
+    <div class="grid-bg"></div>
+
     <!-- NAV -->
     <nav>
         <a href="#" class="nav-logo">
@@ -586,84 +695,95 @@
             <li><a href="#contact">Contact</a></li>
         </ul>
         <button class="hamburger" id="hamburger" aria-label="Toggle navigation">
-            <span></span>
-            <span></span>
-            <span></span>
+            <span></span><span></span><span></span>
         </button>
     </nav>
 
     <!-- HERO -->
     <section class="hero">
+        <div class="hero-glow"></div>
         <img src="logo.png" alt="Valiantum" class="hero-logo">
         <div class="hero-badge">
             <span class="dot"></span>
             Digital Media Company
         </div>
-        <h1>Building Products <br>People <span class="gradient">Actually Use</span></h1>
-        <p>Valiantum LLC is a digital media company creating apps, content platforms, and fan communities that connect people to the things they care about.</p>
+        <h1>Building Products<br>People <span class="gradient">Actually Use</span></h1>
+        <p>Valiantum LLC creates apps, content platforms, and fan communities that connect people to the things they care about.</p>
         <div class="hero-cta">
             <a href="#products" class="btn btn-primary">Our Products</a>
             <a href="#contact" class="btn btn-secondary">Get In Touch</a>
         </div>
     </section>
 
+    <div class="section-divider"></div>
+
     <!-- PRODUCTS -->
     <section id="products">
         <div class="container">
-            <span class="section-label">What We Build</span>
-            <h2 class="section-title">Our Products &amp; Brands</h2>
-            <p class="section-desc">From smart kitchen tools to sports media — we build products and platforms that serve real communities.</p>
+            <span class="section-label reveal">What We Build</span>
+            <h2 class="section-title reveal reveal-delay-1">Our Products &amp; Brands</h2>
+            <p class="section-desc reveal reveal-delay-2">From smart health tools to sports media — we build products and platforms that serve real communities.</p>
 
             <div class="products-grid">
-                <a href="https://pantrywiseapp.com" target="_blank" rel="noopener" class="product-card featured">
+                <a href="https://pantrywiseapp.com" target="_blank" rel="noopener" class="product-card featured reveal reveal-delay-1">
                     <div class="product-icon pantrywise">🥘</div>
-                    <span class="badge">Flagship Product</span>
+                    <span class="badge">Flagship App</span>
                     <h3>PantryWise</h3>
                     <p>A smart pantry management app that helps you track what you have, reduce food waste, and plan meals around ingredients you already own. Available on iOS and Android.</p>
                     <span class="visit-link">Visit pantrywiseapp.com &rarr;</span>
                 </a>
 
-                <a href="https://divisiondugout.com" target="_blank" rel="noopener" class="product-card">
+                <a href="https://basesense.app" target="_blank" rel="noopener" class="product-card featured reveal reveal-delay-2">
+                    <div class="product-icon basesense">🧠</div>
+                    <span class="badge new">New</span>
+                    <h3>BaseSense</h3>
+                    <p>An AI-powered health pattern tracker that helps you log symptoms, habits, and wellness data over time — then surfaces the trends and insights that actually matter to you.</p>
+                    <span class="visit-link">Visit basesense.app &rarr;</span>
+                </a>
+
+                <a href="https://divisiondugout.com" target="_blank" rel="noopener" class="product-card reveal reveal-delay-3">
                     <div class="product-icon dugout">⚾</div>
                     <h3>Division Dugout</h3>
                     <p>An MLB blog and content platform delivering in-depth analysis, takes, and stories for baseball fans who want more than just box scores.</p>
                     <span class="visit-link">Visit divisiondugout.com &rarr;</span>
                 </a>
 
-                <a href="https://natisports.net" target="_blank" rel="noopener" class="product-card">
+                <a href="https://natisports.net" target="_blank" rel="noopener" class="product-card reveal reveal-delay-4">
                     <div class="product-icon nati">🏈</div>
                     <h3>Nati Sports</h3>
-                    <p>A Cincinnati fandom company covering the Bengals, Reds, FC Cincinnati, and Bearcats — built by Cincy fans, for Cincy fans. Partners include SeatGeek, "NATISPORTS" saving $20 per ticket order.</p>
+                    <p>A Cincinnati fandom company covering the Bengals, Reds, FC Cincinnati, and Bearcats — built by Cincy fans, for Cincy fans. Partners include SeatGeek, use "NATISPORTS" to save $20 per order.</p>
                     <span class="visit-link">Visit natisports.net &rarr;</span>
                 </a>
             </div>
         </div>
     </section>
 
+    <div class="section-divider"></div>
+
     <!-- ABOUT -->
     <section id="about">
         <div class="container">
             <div class="about-content">
                 <div>
-                    <span class="section-label">About Us</span>
-                    <h2 class="section-title">Digital Media, Done Right</h2>
-                    <p class="section-desc" style="margin-bottom: 1.5rem;">Valiantum LLC is the parent company behind a growing portfolio of digital products and media brands. We believe in building useful software and authentic content platforms that people genuinely enjoy.</p>
-                    <p class="section-desc">Based out of Cincinnati, OH we combine a passion for technology and sports into products that make everyday life easier and more fun. We just keep expanding.</p>
+                    <span class="section-label reveal">About Us</span>
+                    <h2 class="section-title reveal reveal-delay-1">Digital Media,<br>Done Right</h2>
+                    <p class="section-desc reveal reveal-delay-2" style="margin-bottom: 1.25rem;">Valiantum LLC is the parent company behind a growing portfolio of digital products and media brands. We believe in building useful software and authentic content platforms that people genuinely enjoy.</p>
+                    <p class="section-desc reveal reveal-delay-3">Based out of Cincinnati, OH — we combine a passion for technology, health, and sports into products that make everyday life easier and more fun.</p>
                 </div>
                 <div class="about-stats">
-                    <div class="stat-card">
-                        <div class="number accent">3</div>
+                    <div class="stat-card reveal reveal-delay-1">
+                        <div class="number accent">4</div>
                         <div class="label">Products &amp; Brands</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="number accent">1</div>
-                        <div class="label">Flagship App</div>
+                    <div class="stat-card reveal reveal-delay-2">
+                        <div class="number accent">2</div>
+                        <div class="label">Flagship Apps</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card reveal reveal-delay-3">
                         <div class="number accent">2</div>
                         <div class="label">Media Brands</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card reveal reveal-delay-4">
                         <div class="number accent">&#8734;</div>
                         <div class="label">Passion for Cincy</div>
                     </div>
@@ -672,16 +792,18 @@
         </div>
     </section>
 
+    <div class="section-divider"></div>
+
     <!-- CONTACT -->
     <section id="contact">
         <div class="container">
             <div class="contact-wrapper">
                 <div>
-                    <span class="section-label">Contact</span>
-                    <h2 class="section-title">Let's Talk</h2>
-                    <p class="section-desc">Have a question, partnership idea, or just want to say hey? Drop us a line and we'll get back to you.</p>
+                    <span class="section-label reveal">Contact</span>
+                    <h2 class="section-title reveal reveal-delay-1">Let's Talk</h2>
+                    <p class="section-desc reveal reveal-delay-2">Have a question, partnership idea, or just want to say hey? Drop us a line and we'll get back to you.</p>
                 </div>
-                <form class="contact-form" id="contactForm">
+                <form class="contact-form reveal reveal-delay-2" id="contactForm">
                     <div class="form-group">
                         <label for="name">Name</label>
                         <input type="text" id="name" name="name" placeholder="Your name" required>
@@ -709,6 +831,7 @@
             </div>
             <ul class="footer-links">
                 <li><a href="https://pantrywiseapp.com" target="_blank" rel="noopener">PantryWise</a></li>
+                <li><a href="https://basesense.app" target="_blank" rel="noopener">BaseSense</a></li>
                 <li><a href="https://divisiondugout.com" target="_blank" rel="noopener">Division Dugout</a></li>
                 <li><a href="https://natisports.net" target="_blank" rel="noopener">Nati Sports</a></li>
             </ul>
@@ -717,20 +840,24 @@
     </footer>
 
     <script>
-        // Mobile nav toggle
         const hamburger = document.getElementById('hamburger');
         const navLinks = document.getElementById('navLinks');
 
-        hamburger.addEventListener('click', () => {
-            navLinks.classList.toggle('open');
+        hamburger.addEventListener('click', () => navLinks.classList.toggle('open'));
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => navLinks.classList.remove('open'));
         });
 
-        // Close nav on link click
-        navLinks.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('open');
+        // Scroll reveal
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
             });
-        });
+        }, { threshold: 0.12 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
         // Contact form
         const form = document.getElementById('contactForm');
@@ -738,21 +865,15 @@
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
             const message = document.getElementById('message').value;
-
             const subject = encodeURIComponent(`Contact from ${name}`);
             const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
             window.location.href = `mailto:contact@valiantum.com?subject=${subject}&body=${body}`;
-
             success.classList.add('show');
             form.reset();
-
-            setTimeout(() => {
-                success.classList.remove('show');
-            }, 4000);
+            setTimeout(() => success.classList.remove('show'), 4000);
         });
     </script>
 </body>
