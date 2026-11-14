@@ -184,7 +184,7 @@ async function createApp(env = process.env) {
     res.sendFile(path.join(__dirname, "public", "styles.css")),
   );
   app.get("/logo.png", (_req, res) =>
-    res.sendFile(path.join(__dirname, "..", "public", "logo.png")),
+    res.sendFile(path.join(__dirname, "public", "logo.png")),
   );
   app.use((req, res, next) => (req.session ? next() : res.redirect("/login")));
   app.use(
