@@ -581,6 +581,7 @@ dialog::backdrop {
   margin-top: 12px;
 }
 .login-page {
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -590,6 +591,8 @@ dialog::backdrop {
     linear-gradient(#060910, #060910);
 }
 .login-panel {
+  min-width: 0;
+  justify-self: center;
   width: 420px;
   max-width: 100%;
 }
