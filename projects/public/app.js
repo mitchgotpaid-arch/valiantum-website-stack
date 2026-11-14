@@ -160,9 +160,9 @@ function renderBoard(p) {
     active = entries.filter(({ card }) => !card.completed && !card.archived);
   $("#stats").replaceChildren();
   for (const [stage, label] of [
+    ["in-motion", "in progress"],
     ["plan", "in plan"],
     ["open", "open"],
-    ["in-motion", "in progress"],
     ["completed", "completed"],
   ]) {
     const count = entries.filter(
@@ -189,9 +189,9 @@ function renderBoard(p) {
         .includes(query);
   $("#board").replaceChildren();
   for (const [stage, label] of [
+    ["in-motion", "In progress"],
     ["plan", "Plan"],
     ["open", "Open"],
-    ["in-motion", "In progress"],
   ]) {
     const column = el("section", "list");
     column.setAttribute("aria-label", label);
@@ -1360,7 +1360,35 @@ $("#info-tab").onclick = () => {
   view = "info";
   render();
 };
-$("#quick-capture").onclick = () => editNote();
+function closeCaptureMenu({ focus = false } = {}) {
+  $("#capture-menu").hidden = true;
+  $("#quick-capture").setAttribute("aria-expanded", "false");
+  if (focus) $("#quick-capture").focus();
+}
+$("#quick-capture").onclick = () => {
+  const opening = $("#capture-menu").hidden;
+  $("#capture-menu").hidden = !opening;
+  $("#quick-capture").setAttribute("aria-expanded", String(opening));
+  if (opening) $("#capture-note").focus();
+};
+$("#capture-note").onclick = () => {
+  closeCaptureMenu();
+  editNote();
+};
+$("#capture-todo").onclick = () => {
+  closeCaptureMenu();
+  quickTask();
+};
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#capture-menu, #quick-capture"))
+    closeCaptureMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#capture-menu").hidden) {
+    event.preventDefault();
+    closeCaptureMenu({ focus: true });
+  }
+});
 document
   .querySelectorAll("[data-screen]")
   .forEach((b) => (b.onclick = () => setScreen(b.dataset.screen)));

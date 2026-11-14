@@ -1508,3 +1508,30 @@ dialog::backdrop {
     font-size: 12px;
   }
 }
+
+.capture-menu {
+  position: fixed;
+  right: 28px;
+  bottom: calc(max(24px, env(safe-area-inset-bottom)) + 58px);
+  display: grid;
+  gap: 6px;
+  width: 210px;
+  max-width: calc(100vw - 36px);
+  background: #101b2c;
+  padding: 8px;
+  border: 1px solid #34465e;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px #0008;
+  z-index: 6;
+}
+.capture-menu button {
+  text-align: left;
+  min-height: 46px;
+  border-color: transparent;
+}
+@media (max-width: 760px) {
+  .capture-menu {
+    right: 18px;
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + 58px);
+  }
+}

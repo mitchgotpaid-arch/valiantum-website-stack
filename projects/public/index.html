@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Valiantum Projects</title>
-    <link rel="stylesheet" href="/styles.css?v=4" />
-    <script src="/model.js?v=4" defer></script>
-    <script src="/app.js?v=4" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=5" />
+    <script src="/model.js?v=5" defer></script>
+    <script src="/app.js?v=5" defer></script>
   </head>
   <body>
     <div class="app">
@@ -96,7 +96,22 @@
           <section id="completed-view" class="completed-view" hidden></section>
           <section id="overview" class="overview" hidden></section>
         </section>
-        <button id="quick-capture" class="primary capture-button">
+        <div
+          id="capture-menu"
+          class="capture-menu"
+          role="group"
+          aria-label="Quick capture"
+          hidden
+        >
+          <button id="capture-note" type="button">✎ New idea</button>
+          <button id="capture-todo" type="button">+ New to-do</button>
+        </div>
+        <button
+          id="quick-capture"
+          class="primary capture-button"
+          aria-expanded="false"
+          aria-controls="capture-menu"
+        >
           + Capture idea
         </button>
         <p id="app-error" role="alert"></p>
