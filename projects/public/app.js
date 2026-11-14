@@ -28,7 +28,6 @@ const project = () =>
   state.projects.find((p) => p.id === active && !p.archived);
 const liveLists = (p) => p.lists.filter((l) => !l.archived);
 const liveCards = (l) => l.cards.filter((c) => !c.archived);
-const liveMilestones = (p) => p.milestones.filter((m) => !m.archived);
 const notify = (text) => {
   $("#app-error").textContent = text;
 };
@@ -336,10 +335,6 @@ function cardTile(p, l, c, { context = false } = {}) {
         `☑ ${c.checklist.filter((i) => i.done).length}/${c.checklist.length}`,
       ),
     );
-  const milestone = p.milestones.find(
-    (m) => m.id === c.milestoneId && !m.archived,
-  );
-  if (milestone) item.append(el("p", "task-context", "◇ " + milestone.title));
   if (c.assignee) footer.append(el("span", "owner", c.assignee));
   if (footer.childNodes.length) item.append(footer);
   item.onclick = () => editCard(p.id, l.id, c.id);
@@ -382,38 +377,6 @@ function renderOverview(p) {
     el("h3", "", "About this project"),
     el("p", "", p.description || "Add a description in Project details."),
   );
-  const milestoneHeading = el("div", "section-heading");
-  milestoneHeading.append(
-    el("h3", "", "Milestones"),
-    button("+ Add milestone", () => editMilestone(p.id)),
-  );
-  box.append(milestoneHeading);
-  for (const m of liveMilestones(p)) {
-    const tasks = liveLists(p)
-        .flatMap((l) => liveCards(l))
-        .filter((c) => c.milestoneId === m.id),
-      done = tasks.filter((c) => c.completed).length;
-    const entry = el("div", "milestone-row");
-    const details = el("div");
-    details.append(
-      el("strong", "", m.title),
-      el(
-        "p",
-        "muted",
-        `${m.completed ? "✓ Complete" : m.due ? "Due " + formatDate(m.due) : "No deadline"} · ${done}/${tasks.length} linked tasks complete`,
-      ),
-    );
-    if (m.description) details.append(el("p", "", m.description));
-    entry.append(
-      details,
-      button("Edit", () => editMilestone(p.id, m.id)),
-    );
-    box.append(entry);
-  }
-  if (!liveMilestones(p).length)
-    box.append(
-      el("p", "muted", "Give the next release or big goal a finish line."),
-    );
   box.append(el("h3", "", "Resources & links"));
   const links = p.links
     .split("\n")
@@ -517,26 +480,6 @@ function renderWorkspace() {
         emptyMessage(
           "Nothing overdue or due today. Capture an idea, plan your next task, or open a project.",
         ),
-      );
-    const milestones = state.projects
-      .filter((p) => !p.archived)
-      .flatMap((p) =>
-        liveMilestones(p)
-          .filter((m) => !m.completed && m.due && m.due <= end)
-          .map((m) => ({ p, m })),
-      )
-      .sort((a, b) => a.m.due.localeCompare(b.m.due));
-    if (milestones.length)
-      box.append(
-        section("Milestones on the horizon", milestones, ({ p, m }) => {
-          const n = el("div", "note-card");
-          n.append(
-            el("h3", "", m.title),
-            el("p", "muted", p.name + " · " + formatDate(m.due)),
-            button("Edit milestone", () => editMilestone(p.id, m.id)),
-          );
-          return n;
-        }),
       );
   } else if (screen === "ideas") {
     box.append(
@@ -669,15 +612,6 @@ function renderWorkspace() {
                   .cards.find((x) => x.id === c.id).archived = false),
             );
       }
-      for (const m of p.milestones)
-        if (m.archived)
-          add(
-            `${p.name} / Milestone · ${m.title}`,
-            () =>
-              (state.projects
-                .find((x) => x.id === p.id)
-                .milestones.find((x) => x.id === m.id).archived = false),
-          );
     }
     for (const n of state.notes)
       if (n.archived)
@@ -1015,17 +949,12 @@ function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
     "field-help",
     "Completing a recurring task creates the next occurrence from its due date (or today), with a fresh checklist. Overdue schedules advance one occurrence at a time.",
   );
-  const options = [
-    ["", "No milestone"],
-    ...p.milestones
-      .filter((m) => !m.archived || m.id === c.milestoneId)
-      .map((m) => [m.id, m.title + (m.archived ? " (archived)" : "")]),
-  ];
   const fields = [
     title,
+    stageField,
+    checklist,
     field("Description & notes", "description", c.description, "textarea"),
     row,
-    stageField,
     el(
       "p",
       "field-help",
@@ -1039,9 +968,7 @@ function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
     ]),
     recurrenceHelp,
     field("Assignee (optional)", "assignee", c.assignee, "text", 150),
-    select("Milestone", "milestoneId", c.milestoneId, options),
     positionField,
-    checklist,
   ];
   if (note)
     fields.push(
@@ -1081,7 +1008,6 @@ function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
               ? c.repeatDay
               : Number(fd.get("due").slice(-2))
             : 0,
-          milestoneId: fd.get("milestoneId"),
           completed: previous?.completed || false,
           inMotion: fd.get("status") === "in-motion",
           planned: fd.get("status") === "plan",
@@ -1114,54 +1040,6 @@ function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
                 .find((p) => p.id === projectId)
                 .lists.find((l) => l.id === listId)
                 .cards.find((c) => c.id === cardId).archived = true),
-          )
-      : null,
-  );
-}
-function editMilestone(projectId, milestoneId) {
-  const p = state.projects.find((p) => p.id === projectId),
-    m = p.milestones.find((m) => m.id === milestoneId) || {
-      title: "",
-      description: "",
-      due: "",
-      completed: false,
-    };
-  const title = field("Milestone title", "title", m.title, "text", 160);
-  title.querySelector("input").required = true;
-  openEditor(
-    "MILESTONE",
-    milestoneId ? "A clear finish line." : "Set your next goal.",
-    [
-      title,
-      field("Description", "description", m.description, "textarea", 5000),
-      field("Target date", "due", m.due, "date"),
-      checkbox("Milestone complete", "completed", m.completed),
-    ],
-    (fd) => {
-      const title = fd.get("title").trim();
-      if (!title) throw Error("Enter a milestone title.");
-      return change(() => {
-        const p = state.projects.find((p) => p.id === projectId);
-        let current = p.milestones.find((m) => m.id === milestoneId);
-        if (!current) {
-          current = { id: id(), archived: false };
-          p.milestones.push(current);
-        }
-        Object.assign(current, {
-          title,
-          description: fd.get("description"),
-          due: fd.get("due"),
-          completed: fd.has("completed"),
-        });
-      });
-    },
-    milestoneId
-      ? () =>
-          change(
-            () =>
-              (state.projects
-                .find((p) => p.id === projectId)
-                .milestones.find((m) => m.id === milestoneId).archived = true),
           )
       : null,
   );

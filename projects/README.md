@@ -66,3 +66,8 @@ Each project's Cards view has three fixed categories: **Plan**, **Open**, and **
 Marking a card **Complete** automatically removes it from the active view and saves it in that project's **Completed** tab. The tab retains the card's full contents and the completion date for new completions. Open a completed card and select an active stage to bring it back; Undo also reverses a recent completion. Completed cards still count toward milestone progress. A recurring completion creates the next occurrence in Plan while retaining the completed occurrence in history.
 
 Legacy list containers remain in storage to preserve existing records, but custom to-do lists no longer drive the visible board. Existing unstarted cards from Plan/To do/Ideas/Backlog initialize in Plan; other existing statuses remain available. Completed history is separate from the manual Archive, which remains for deliberately archived projects, cards, and notes. No cards are deleted by this update.
+
+
+## Simplified card form
+
+The card editor starts with Card title, Card stage, and Checklist, followed by the remaining details. Milestone controls and displays have been removed from cards, Overview, Today, and Archive. Legacy milestone fields remain compatible with existing stored documents; there is no destructive data migration.
