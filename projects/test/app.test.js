@@ -4,7 +4,7 @@ const { scryptSync } = require("node:crypto");
 const { mkdtemp, rm } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { createApp } = require("../server");
+const { createApp } = require("../app");
 test("private workspace authentication, validation, persistence, conflicts and logout", async () => {
   const folder = await mkdtemp(path.join(os.tmpdir(), "valiantum-test-"));
   const salt = "a".repeat(32),
@@ -150,4 +150,39 @@ test("production fails closed without configured credentials and durable storage
     createApp({ ...env, APP_ORIGIN: "https://projects.valiantum.com" }),
     /MySQL/,
   );
+});
+
+test('Hostinger module runner starts the server when it requires the entry file', async () => {
+  const { spawn } = require('node:child_process');
+  const folder = await mkdtemp(path.join(os.tmpdir(), 'valiantum-entry-'));
+  const salt = 'c'.repeat(32);
+  const child = spawn(process.execPath, ['-e', 'require("./server")'], {
+    cwd: path.join(__dirname, '..'),
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      PORT: '0',
+      MYSQL_HOST: '',
+      PROJECTS_EMAIL: 'owner@example.com',
+      PROJECTS_PASSWORD_HASH: salt + ':' + scryptSync('test-password', salt, 64).toString('hex'),
+      PROJECTS_DATA_FILE: path.join(folder, 'workspace.json'),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Required entry did not start listening')), 3000);
+      let output = '';
+      child.stdout.on('data', chunk => {
+        output += chunk;
+        if (output.includes('Valiantum Projects ready')) { clearTimeout(timeout); resolve(); }
+      });
+      child.once('error', error => { clearTimeout(timeout); reject(error); });
+      child.once('exit', code => { clearTimeout(timeout); reject(new Error('Entry exited before listening: ' + code)); });
+    });
+  } finally {
+    child.kill();
+    await new Promise(resolve => child.once('close', resolve));
+    await rm(folder, { recursive: true, force: true });
+  }
 });
