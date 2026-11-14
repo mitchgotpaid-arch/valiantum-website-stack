@@ -48,6 +48,11 @@
           c.archived ??= false;
           c.completed ??= /^(done|complete|completed)$/i.test(l.name.trim());
           c.inMotion ??= false;
+          c.planned ??=
+            !c.completed &&
+            !c.inMotion &&
+            /^(to[ -]?do|plan|ideas|backlog)$/i.test(l.name.trim());
+          c.completedAt ??= 0;
           c.repeat ||= "none";
           c.repeatDay ??= c.due ? Number(c.due.slice(-2)) : 0;
           c.milestoneId ||= "";
@@ -124,6 +129,10 @@
                 ["Low", "Medium", "High"].includes(c.priority) &&
                 bool(c.completed) &&
                 (c.inMotion === undefined || bool(c.inMotion)) &&
+                (c.planned === undefined || bool(c.planned)) &&
+                (c.completedAt === undefined ||
+                  (Number.isSafeInteger(c.completedAt) &&
+                    c.completedAt >= 0)) &&
                 bool(c.archived) &&
                 ["none", "daily", "weekly", "monthly"].includes(c.repeat) &&
                 Number.isInteger(c.repeatDay) &&
@@ -173,6 +182,8 @@
       checklist: [],
       completed: false,
       inMotion: false,
+      planned: true,
+      completedAt: 0,
       archived: false,
       repeat: "none",
       repeatDay: 0,
@@ -224,6 +235,8 @@
                   due: "",
                   completed: false,
                   inMotion: false,
+                  planned: true,
+                  completedAt: 0,
                   archived: false,
                   repeatDay: 0,
                   nextOccurrenceId: "",
@@ -250,6 +263,8 @@
     if (card.completed) return null;
     card.completed = true;
     card.inMotion = false;
+    card.planned = false;
+    card.completedAt = Date.now();
     if (card.repeat === "none" || card.nextOccurrenceId) return null;
     const anchor =
       card.repeatDay ||
@@ -260,6 +275,8 @@
         id: makeId(),
         completed: false,
         inMotion: false,
+        planned: true,
+        completedAt: 0,
         archived: false,
         nextOccurrenceId: "",
         due: nextDate(card.due, card.repeat, today, anchor),
@@ -366,9 +383,39 @@
     ];
   }
   const taskStatus = (card) =>
-    card.completed ? "completed" : card.inMotion ? "in-motion" : "open";
+    card.completed
+      ? "completed"
+      : card.inMotion
+        ? "in-motion"
+        : card.planned
+          ? "plan"
+          : "open";
+  function workflowCards(project) {
+    return project.lists
+      .filter((list) => !list.archived)
+      .flatMap((list) =>
+        list.cards
+          .filter((card) => !card.archived || card.completed)
+          .map((card) => ({ list, card })),
+      );
+  }
+  function setStage(project, list, card, stage) {
+    if (!["plan", "open", "in-motion", "completed"].includes(stage))
+      throw Error("Choose a valid card stage.");
+    card.archived = false;
+    if (stage === "completed") {
+      completeTask(project, list, card);
+      return;
+    }
+    card.completed = false;
+    card.completedAt = 0;
+    card.inMotion = stage === "in-motion";
+    card.planned = stage === "plan";
+  }
   return {
     taskStatus,
+    workflowCards,
+    setStage,
     copy,
     localDay,
     validDate,

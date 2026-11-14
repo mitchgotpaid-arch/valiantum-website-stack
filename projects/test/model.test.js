@@ -161,12 +161,12 @@ test("rejects malformed new features, duplicate IDs and orphan milestone/note re
   }
 });
 
-test("three task statuses persist and new recurring/template tasks reset to Open", () => {
+test("card stages persist and new recurring/template cards start in Plan", () => {
   const data = M.normalizeWorkspace(legacy());
   const project = data.projects[0],
     list = project.lists[0],
     card = list.cards[0];
-  assert.equal(M.taskStatus(card), "open");
+  assert.equal(M.taskStatus(card), "plan");
   card.inMotion = true;
   assert.equal(M.taskStatus(card), "in-motion");
   assert.ok(M.validWorkspace(data));
@@ -178,14 +178,48 @@ test("three task statuses persist and new recurring/template tasks reset to Open
     "in-motion",
   );
   const templateCopy = M.projectFromTemplate(project, "Fresh project");
-  assert.equal(M.taskStatus(templateCopy.lists[0].cards[0]), "open");
+  assert.equal(M.taskStatus(templateCopy.lists[0].cards[0]), "plan");
   card.repeat = "weekly";
   const next = M.completeTask(project, list, card, "2026-11-14");
   assert.equal(M.taskStatus(card), "completed");
   assert.equal(card.inMotion, false);
-  assert.equal(M.taskStatus(next), "open");
+  assert.equal(M.taskStatus(next), "plan");
   card.completed = false;
   assert.equal(M.taskStatus(card), "open");
   next.inMotion = "invalid";
   assert.equal(M.validWorkspace(data), false);
+});
+
+test("workflow completion leaves active categories, preserves history and reopens without loss", () => {
+  const data = M.normalizeWorkspace(legacy()),
+    p = data.projects[0],
+    l = p.lists[0],
+    card = l.cards[0];
+  const original = card.description;
+  assert.equal(M.taskStatus(card), "plan");
+  M.setStage(p, l, card, "open");
+  assert.equal(M.taskStatus(card), "open");
+  M.setStage(p, l, card, "in-motion");
+  assert.equal(M.taskStatus(card), "in-motion");
+  M.setStage(p, l, card, "completed");
+  assert.equal(
+    M.workflowCards(p)
+      .filter((e) => !e.card.completed)
+      .some((e) => e.card.id === card.id),
+    false,
+  );
+  const history = M.workflowCards(p).filter((e) => e.card.completed);
+  assert.ok(history.some((e) => e.card.id === card.id));
+  assert.ok(card.completedAt > 0);
+  const persisted = M.normalizeWorkspace(JSON.parse(JSON.stringify(data)));
+  assert.ok(
+    M.workflowCards(persisted.projects[0]).some(
+      (e) => e.card.id === card.id && e.card.completed,
+    ),
+  );
+  M.setStage(p, l, card, "plan");
+  assert.equal(M.taskStatus(card), "plan");
+  assert.equal(card.description, original);
+  assert.equal(card.completedAt, 0);
+  assert.ok(M.validWorkspace(data));
 });

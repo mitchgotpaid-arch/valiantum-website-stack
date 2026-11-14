@@ -155,78 +155,82 @@ function render() {
 function renderBoard(p) {
   $("#project-name").textContent = p.name;
   $("#project-description").textContent =
-    p.description || "A little clarity. A lot of forward motion.";
-  const cards = liveLists(p).flatMap((l) => liveCards(l));
-  const checklistTotal = cards.reduce((n, c) => n + c.checklist.length, 0),
-    checklistDone = cards.reduce(
-      (n, c) => n + c.checklist.filter((i) => i.done).length,
-      0,
-    );
+    p.description || "A place for the ideas you want to move forward.";
+  const entries = M.workflowCards(p),
+    active = entries.filter(({ card }) => !card.completed && !card.archived);
   $("#stats").replaceChildren();
-  [
-    [cards.filter((c) => M.taskStatus(c) === "open").length, "open"],
-    [cards.filter((c) => M.taskStatus(c) === "in-motion").length, "in motion"],
-    [cards.filter((c) => c.completed).length, "completed"],
-    [`${checklistDone}/${checklistTotal}`, "checklist items"],
-  ].forEach(([n, label]) => {
-    const s = el("span");
-    s.append(el("strong", "", String(n)), document.createTextNode(" " + label));
-    $("#stats").append(s);
-  });
+  for (const [stage, label] of [
+    ["plan", "in plan"],
+    ["open", "open"],
+    ["in-motion", "in progress"],
+    ["completed", "completed"],
+  ]) {
+    const count = entries.filter(
+        ({ card }) => M.taskStatus(card) === stage,
+      ).length,
+      span = el("span");
+    span.append(
+      el("strong", "", String(count)),
+      document.createTextNode(" " + label),
+    );
+    $("#stats").append(span);
+  }
   $("#board").hidden = view !== "board";
   $("#overview").hidden = view !== "info";
+  $("#completed-view").hidden = view !== "completed";
   $("#board-tab").classList.toggle("active", view === "board");
   $("#info-tab").classList.toggle("active", view === "info");
-  $("#board").replaceChildren();
-  const query = $("#search").value.toLowerCase();
-  for (const list of liveLists(p)) {
-    const column = el("section", "list");
-    column.setAttribute("aria-label", list.name);
-    column.dataset.list = list.id;
-    const heading = el("div", "list-heading");
-    heading.append(
-      el("h3", "", list.name),
-      el("span", "count", String(liveCards(list).length)),
-    );
-    const settings = button("⋯", () => editList(p.id, list.id), "icon");
-    settings.setAttribute("aria-label", "Edit " + list.name);
-    heading.append(settings);
-    column.append(heading);
-    for (const card of liveCards(list).filter((c) =>
-      [c.title, c.description, c.assignee]
+  $("#completed-tab").classList.toggle("active", view === "completed");
+  const query = $("#search").value.toLowerCase(),
+    matches = (card) =>
+      [card.title, card.description, card.assignee]
         .join(" ")
         .toLowerCase()
-        .includes(query),
-    )) {
-      const item = cardTile(p, list, card);
-      item.draggable = matchMedia("(pointer: fine)").matches;
-      item.ondragstart = (e) => {
+        .includes(query);
+  $("#board").replaceChildren();
+  for (const [stage, label] of [
+    ["plan", "Plan"],
+    ["open", "Open"],
+    ["in-motion", "In progress"],
+  ]) {
+    const column = el("section", "list");
+    column.setAttribute("aria-label", label);
+    column.dataset.stage = stage;
+    const items = active.filter(({ card }) => M.taskStatus(card) === stage),
+      heading = el("div", "list-heading");
+    heading.append(
+      el("h3", "", label),
+      el("span", "count", String(items.length)),
+    );
+    column.append(heading);
+    for (const { list, card } of items.filter(({ card }) => matches(card))) {
+      const tile = cardTile(p, list, card);
+      tile.draggable = matchMedia("(pointer: fine)").matches;
+      tile.ondragstart = (e) => {
         dragging = { project: p.id, list: list.id, card: card.id };
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", card.id);
       };
-      item.ondragend = () => {
+      tile.ondragend = () => {
         dragging = null;
         document
           .querySelectorAll(".drag-over")
           .forEach((n) => n.classList.remove("drag-over"));
       };
-      item.ondragover = (e) => {
+      tile.ondragover = (e) => {
         if (dragging) {
           e.preventDefault();
           e.stopPropagation();
         }
       };
-      item.ondrop = (e) => {
+      tile.ondrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        moveCard(p.id, list.id, card.id);
+        moveCard(p.id, stage, card.id);
       };
-      column.append(item);
+      column.append(tile);
     }
-    column.append(
-      button("+ Add a task", () => editCard(p.id, list.id), "add-card"),
-    );
+    column.append(button("+ Add card", () => addCard(p, stage), "add-card"));
     column.ondragover = (e) => {
       if (dragging) {
         e.preventDefault();
@@ -240,21 +244,61 @@ function renderBoard(p) {
     column.ondrop = (e) => {
       e.preventDefault();
       column.classList.remove("drag-over");
-      moveCard(p.id, list.id);
+      moveCard(p.id, stage);
     };
     $("#board").append(column);
   }
-  if (!liveLists(p).length)
-    $("#board").append(
-      emptyMessage("No active lists. Add a list or restore one from Archive."),
+  const completed = entries
+    .filter(({ card }) => card.completed && matches(card))
+    .sort((a, b) => (b.card.completedAt || 0) - (a.card.completedAt || 0));
+  const history = $("#completed-view");
+  history.replaceChildren(
+    el("h2", "", "Completed cards"),
+    el(
+      "p",
+      "muted",
+      "Finished cards are saved here automatically. Open one to review it or return it to Plan, Open, or In progress.",
+    ),
+  );
+  if (completed.length) {
+    const grid = el("div", "task-grid");
+    for (const { list, card } of completed) {
+      const tile = cardTile(p, list, card);
+      if (card.completedAt)
+        tile.append(
+          el(
+            "p",
+            "task-context",
+            "Completed " + new Date(card.completedAt).toLocaleDateString(),
+          ),
+        );
+      grid.append(tile);
+    }
+    history.append(grid);
+  } else
+    history.append(
+      emptyMessage(
+        query
+          ? "No completed cards match that search."
+          : "Completed cards will appear here when you mark them Complete.",
+      ),
     );
   renderOverview(p);
+}
+function addCard(p, stage = "plan") {
+  let list = liveLists(p)[0];
+  if (!list) {
+    notify("Restore an archived group before adding a card.");
+    return;
+  }
+  editCard(p.id, list.id, undefined, undefined, stage);
 }
 function cardTile(p, l, c, { context = false } = {}) {
   const status = M.taskStatus(c);
   const label = {
+    plan: "Plan",
     open: "Open",
-    "in-motion": "In motion",
+    "in-motion": "In progress",
     completed: "Completed",
   }[status];
   const item = el("article", "card status-" + status);
@@ -314,7 +358,7 @@ function formatDate(day) {
     year: "numeric",
   });
 }
-function moveCard(projectId, targetId, beforeId) {
+function moveCard(projectId, stage, beforeId) {
   if (!dragging) return;
   const from = dragging;
   dragging = null;
@@ -322,12 +366,14 @@ function moveCard(projectId, targetId, beforeId) {
   change(() => {
     const p = state.projects.find((p) => p.id === projectId),
       source = p.lists.find((l) => l.id === from.list),
-      target = p.lists.find((l) => l.id === targetId);
-    const i = source.cards.findIndex((c) => c.id === from.card);
+      i = source.cards.findIndex((c) => c.id === from.card);
     if (i < 0) return;
     const [card] = source.cards.splice(i, 1);
+    const before = M.workflowCards(p).find((e) => e.card.id === beforeId),
+      target = before?.list || liveLists(p).at(-1) || source;
     const at = target.cards.findIndex((c) => c.id === beforeId);
     target.cards.splice(at < 0 ? target.cards.length : at, 0, card);
+    M.setStage(p, target, card, stage);
   });
 }
 function renderOverview(p) {
@@ -436,7 +482,7 @@ function renderWorkspace() {
           month: "long",
           day: "numeric",
         }),
-        button("+ Quick task", () => quickTask(), "primary"),
+        button("+ Quick card", () => quickTask(), "primary"),
       ),
     );
     const overdue = tasks.filter((t) => t.card.due && t.card.due < today),
@@ -784,18 +830,6 @@ function editProject(projectId, chosenTemplate) {
         }
       }),
     );
-    extra.push(
-      button("Archive completed tasks", async () => {
-        if (
-          await change(() => {
-            for (const l of state.projects.find((p) => p.id === projectId)
-              .lists)
-              for (const c of l.cards) if (c.completed) c.archived = true;
-          })
-        )
-          $("#editor").close();
-      }),
-    );
   }
   openEditor(
     "PROJECT DETAILS",
@@ -888,15 +922,20 @@ function quickTask() {
     null,
   );
 }
-function editCard(projectId, listId, cardId, noteId) {
+function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
   const p = state.projects.find((p) => p.id === projectId),
     list = p.lists.find((l) => l.id === listId),
     existing = list.cards.find((c) => c.id === cardId),
     note = state.notes.find((n) => n.id === noteId),
     c =
       existing ||
-      M.task({ title: note?.title || "", description: note?.body || "" });
-  const title = field("Task title", "title", c.title, "text", 300);
+      M.task({
+        title: note?.title || "",
+        description: note?.body || "",
+        planned: initialStage === "plan",
+        inMotion: initialStage === "in-motion",
+      });
+  const title = field("Card title", "title", c.title, "text", 300);
   title.querySelector("input").required = true;
   const row = el("div", "field-row");
   row.append(
@@ -908,40 +947,39 @@ function editCard(projectId, listId, cardId, noteId) {
     ),
     field("Due date", "due", c.due, "date"),
   );
-  const listField = select(
-      "List",
-      "list",
-      list.id,
-      liveLists(p).map((l) => [l.id, l.name]),
-    ),
-    positionField = select("Position", "position", "", []);
+  const stageField = select("Card stage", "status", M.taskStatus(c), [
+    ["plan", "Plan"],
+    ["open", "Open"],
+    ["in-motion", "In progress"],
+    ["completed", "Complete"],
+  ]);
+  const positionField = select("Position", "position", "", []);
   function updatePositions() {
-    const target = p.lists.find(
-        (l) => l.id === listField.querySelector("select").value,
-      ),
-      others = target.cards.filter(
-        (card) => !card.archived && card.id !== cardId,
+    const stage = stageField.querySelector("select").value,
+      others = M.workflowCards(p).filter(
+        (e) =>
+          !e.card.archived &&
+          e.card.id !== cardId &&
+          M.taskStatus(e.card) === stage,
       ),
       positions = positionField.querySelector("select");
     positions.replaceChildren();
-    for (const card of others) {
-      const o = el("option", "", "Before: " + card.title);
-      o.value = card.id;
-      positions.append(o);
+    for (const { card } of others) {
+      const option = el("option", "", "Before: " + card.title);
+      option.value = card.id;
+      positions.append(option);
     }
-    const end = el("option", "", "End of list");
+    const end = el("option", "", "End of category");
     end.value = "";
     positions.append(end);
-    const next =
-      existing && target.id === list.id
-        ? liveCards(list).slice(
-            liveCards(list).findIndex((x) => x.id === cardId) + 1,
-          )[0]
-        : null;
-    positions.value = next?.id || "";
+    const all = M.workflowCards(p).filter(
+        (e) => !e.card.archived && M.taskStatus(e.card) === stage,
+      ),
+      index = all.findIndex((e) => e.card.id === cardId);
+    positions.value = index >= 0 ? all[index + 1]?.card.id || "" : "";
   }
   updatePositions();
-  listField.querySelector("select").onchange = updatePositions;
+  stageField.querySelector("select").onchange = updatePositions;
   const checklist = el("div", "checklist");
   checklist.append(el("h3", "small", "CHECKLIST"));
   const rows = el("div");
@@ -987,11 +1025,12 @@ function editCard(projectId, listId, cardId, noteId) {
     title,
     field("Description & notes", "description", c.description, "textarea"),
     row,
-    select("Task status", "status", M.taskStatus(c), [
-      ["open", "Open"],
-      ["in-motion", "In motion"],
-      ["completed", "Completed"],
-    ]),
+    stageField,
+    el(
+      "p",
+      "field-help",
+      "New cards start in Plan. Complete removes the card from the active categories and saves it in the Completed tab.",
+    ),
     select("Repeat", "repeat", c.repeat, [
       ["none", "Does not repeat"],
       ["daily", "Daily"],
@@ -1001,7 +1040,6 @@ function editCard(projectId, listId, cardId, noteId) {
     recurrenceHelp,
     field("Assignee (optional)", "assignee", c.assignee, "text", 150),
     select("Milestone", "milestoneId", c.milestoneId, options),
-    listField,
     positionField,
     checklist,
   ];
@@ -1014,7 +1052,7 @@ function editCard(projectId, listId, cardId, noteId) {
       ),
     );
   openEditor(
-    "TASK DETAILS",
+    "CARD DETAILS",
     existing ? "Keep things moving." : "What’s next?",
     fields,
     (fd) => {
@@ -1023,8 +1061,11 @@ function editCard(projectId, listId, cardId, noteId) {
       if (!M.validDate(fd.get("due"))) throw Error("Choose a valid due date.");
       return change(() => {
         const p = state.projects.find((p) => p.id === projectId),
-          source = p.lists.find((l) => l.id === listId),
-          target = p.lists.find((l) => l.id === fd.get("list"));
+          source = p.lists.find((l) => l.id === listId);
+        const beforeEntry = M.workflowCards(p).find(
+          (e) => e.card.id === fd.get("position"),
+        );
+        const target = beforeEntry?.list || source;
         const previous = source.cards.find((c) => c.id === cardId);
         const value = M.task({
           ...c,
@@ -1043,6 +1084,7 @@ function editCard(projectId, listId, cardId, noteId) {
           milestoneId: fd.get("milestoneId"),
           completed: previous?.completed || false,
           inMotion: fd.get("status") === "in-motion",
+          planned: fd.get("status") === "plan",
           checklist: Array.from(rows.children)
             .map((r) => ({
               id: r.dataset.id,
@@ -1061,9 +1103,7 @@ function editCard(projectId, listId, cardId, noteId) {
           0,
           value,
         );
-        if (fd.get("status") === "completed" && !value.completed)
-          M.completeTask(p, target, value);
-        else value.completed = fd.get("status") === "completed";
+        M.setStage(p, target, value, fd.get("status"));
       });
     },
     existing
@@ -1303,13 +1343,17 @@ $("#close-editor").onclick = $("#cancel-editor").onclick = () =>
   $("#editor").close();
 $("#new-project").onclick = $("#first-project").onclick = () => editProject();
 $("#project-settings").onclick = () => editProject(project().id);
-$("#add-list").onclick = () => editList(project().id);
+$("#add-list").onclick = () => addCard(project());
 $("#search").oninput = () => renderBoard(project());
 $("#project-picker").onchange = (e) => {
   if (e.target.value) selectProject(e.target.value);
 };
 $("#board-tab").onclick = () => {
   view = "board";
+  render();
+};
+$("#completed-tab").onclick = () => {
+  view = "completed";
   render();
 };
 $("#info-tab").onclick = () => {

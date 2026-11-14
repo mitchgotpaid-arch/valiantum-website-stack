@@ -2,7 +2,7 @@
 
 Single-owner project workspace for **projects.valiantum.com**. The original marketing website stays unchanged. Projects runs as a separate Node.js application from this repository's `projects/` directory.
 
-Features: projects, descriptions, resource links, custom lists, draggable cards (including reordering), card notes, priorities, assignees, due dates, editable checklists, search, JSON export and responsive layouts. The task editor's List selector also supports keyboard/touch movement.
+Features: projects, descriptions, resource links, custom lists, draggable cards (including reordering), card notes, priorities, assignees, due dates, editable checklists, search, JSON export and responsive layouts. The card editor supports keyboard/touch stage changes.
 
 ## Local development
 
@@ -36,7 +36,7 @@ To rotate the owner password, generate a new hash, replace `PROJECTS_PASSWORD_HA
 
 ## Mobile usage
 
-At phone widths (up to 760px), use the Project dropdown to switch projects. Lists stack vertically so every column is reachable with normal page scrolling. Tap a card to edit it; use **List** to move it and **Position** to reorder it. These controls also work with a keyboard on desktop. Desktop mouse drag-and-drop remains available.
+At phone widths (up to 760px), use the Project dropdown to switch projects. Lists stack vertically so every column is reachable with normal page scrolling. Tap a card to edit it; use **Card stage** to move it and **Position** to reorder it. These controls also work with a keyboard on desktop. Desktop mouse drag-and-drop remains available.
 
 Phone layouts use larger touch targets and 16px form inputs, and editors adapt to the visible viewport with sticky save/cancel actions. Browser verification covered widths 320, 390, 430, 768, 844 and 1280px, including narrow-screen editing, checklist completion, due dates, project switching, search, list creation, task movement/ordering and persistence across reloads. Physical iOS/Android and on-screen keyboard behavior still warrant device testing. The workspace requires an internet connection; it does not offer offline editing.
 
@@ -50,10 +50,19 @@ Phone layouts use larger touch targets and 16px form inputs, and editors adapt t
 - **Milestones** live in a project's Overview. Add a target date and link tasks through the task editor. Linked-task progress is calculated automatically; milestone completion itself is explicit.
 - **Archive** replaces permanent deletion for projects, lists, tasks, notes, templates and milestones. Archived parents hide their children until restored. Use Archive to restore anything; Project details can bulk-archive completed tasks. **Undo last change** reverses the last successful edit in the current tab and session, including recurring task creation; it is a one-step undo, not a history log.
 
-Task status is explicit. Moving a card between custom lists does not change completion: set **Task status → Completed** for Today, recurrence and milestone progress to recognize completion.
+Task status is explicit. Moving a card between custom lists does not change completion: set **Card stage → Complete** for Today, recurrence and milestone progress to recognize completion.
 
 Existing JSON documents upgrade in memory without a destructive database migration. Legacy tasks already in a list named Done/Complete/Completed initialize as completed. The first successful edit persists the expanded document. Stale clients without `X-Workspace-Version: 2` cannot write, which prevents an old tab from dropping new note/template fields. All new data remains behind the existing authenticated API and is included in JSON exports.
 
 ## Task status colors
 
-Choose **Open**, **In motion**, or **Completed** in the task editor. Open cards use a soft slate background; In motion uses muted yellow; Completed uses toned green with a checkmark box at the top right. Status text remains visible alongside priority, and completed content stays at full opacity without strikethrough. In motion tasks remain active in Today. New template copies and recurring occurrences start Open.
+Choose **Plan**, **Open**, **In progress**, or **Complete** in the card editor. Open cards use a soft slate background; In progress uses muted yellow; Completed uses toned green with a checkmark box at the top right. Status text remains visible alongside priority, and completed content stays at full opacity without strikethrough. In motion tasks remain active in Today. New template copies and recurring occurrences start in Plan.
+
+
+## Stage-based project cards
+
+Each project's Cards view has three fixed categories: **Plan**, **Open**, and **In progress**. These are derived from card stage, so status, color, and placement stay synchronized. Drag between categories on desktop, or use Card stage in the editor on any device. The global Add card action starts in Plan.
+
+Marking a card **Complete** automatically removes it from the active view and saves it in that project's **Completed** tab. The tab retains the card's full contents and the completion date for new completions. Open a completed card and select an active stage to bring it back; Undo also reverses a recent completion. Completed cards still count toward milestone progress. A recurring completion creates the next occurrence in Plan while retaining the completed occurrence in history.
+
+Legacy list containers remain in storage to preserve existing records, but custom to-do lists no longer drive the visible board. Existing unstarted cards from Plan/To do/Ideas/Backlog initialize in Plan; other existing statuses remain available. Completed history is separate from the manual Archive, which remains for deliberately archived projects, cards, and notes. No cards are deleted by this update.

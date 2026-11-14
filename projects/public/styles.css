@@ -1468,3 +1468,43 @@ dialog::backdrop {
     font-size: 12px;
   }
 }
+.card.status-plan {
+  background: #171e31;
+  border-color: #3a4562;
+}
+.status-plan .status-label {
+  background: #303b58;
+  color: #d3ddf5;
+}
+.card.status-plan:hover {
+  border-color: #7583ac;
+}
+.completed-view {
+  margin: 0 38px 100px;
+}
+.completed-view > h2 {
+  font-size: 22px;
+  margin: 8px 0;
+}
+.completed-view > p {
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .completed-view {
+    margin-left: 22px;
+    margin-right: 22px;
+  }
+}
+@media (max-width: 760px) {
+  .completed-view {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+  .view-tabs {
+    gap: 14px;
+    width: 100%;
+  }
+  .view-tabs button {
+    font-size: 12px;
+  }
+}
