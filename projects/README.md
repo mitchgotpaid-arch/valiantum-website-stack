@@ -53,3 +53,7 @@ Phone layouts use larger touch targets and 16px form inputs, and editors adapt t
 Task status is explicit. Moving a card between custom lists does not change completion: set **Task status → Completed** for Today, recurrence and milestone progress to recognize completion.
 
 Existing JSON documents upgrade in memory without a destructive database migration. Legacy tasks already in a list named Done/Complete/Completed initialize as completed. The first successful edit persists the expanded document. Stale clients without `X-Workspace-Version: 2` cannot write, which prevents an old tab from dropping new note/template fields. All new data remains behind the existing authenticated API and is included in JSON exports.
+
+## Task status colors
+
+Choose **Open**, **In motion**, or **Completed** in the task editor. Open cards use a soft slate background; In motion uses muted yellow; Completed uses toned green with a checkmark box at the top right. Status text remains visible alongside priority, and completed content stays at full opacity without strikethrough. In motion tasks remain active in Today. New template copies and recurring occurrences start Open.

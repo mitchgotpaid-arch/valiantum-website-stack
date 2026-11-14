@@ -160,3 +160,32 @@ test("rejects malformed new features, duplicate IDs and orphan milestone/note re
     assert.equal(M.validWorkspace(data), false);
   }
 });
+
+test("three task statuses persist and new recurring/template tasks reset to Open", () => {
+  const data = M.normalizeWorkspace(legacy());
+  const project = data.projects[0],
+    list = project.lists[0],
+    card = list.cards[0];
+  assert.equal(M.taskStatus(card), "open");
+  card.inMotion = true;
+  assert.equal(M.taskStatus(card), "in-motion");
+  assert.ok(M.validWorkspace(data));
+  assert.equal(
+    M.taskStatus(
+      M.normalizeWorkspace(JSON.parse(JSON.stringify(data))).projects[0]
+        .lists[0].cards[0],
+    ),
+    "in-motion",
+  );
+  const templateCopy = M.projectFromTemplate(project, "Fresh project");
+  assert.equal(M.taskStatus(templateCopy.lists[0].cards[0]), "open");
+  card.repeat = "weekly";
+  const next = M.completeTask(project, list, card, "2026-11-14");
+  assert.equal(M.taskStatus(card), "completed");
+  assert.equal(card.inMotion, false);
+  assert.equal(M.taskStatus(next), "open");
+  card.completed = false;
+  assert.equal(M.taskStatus(card), "open");
+  next.inMotion = "invalid";
+  assert.equal(M.validWorkspace(data), false);
+});

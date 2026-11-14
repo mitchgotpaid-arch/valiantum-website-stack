@@ -1129,12 +1129,6 @@ dialog::backdrop {
 .card-footer {
   flex-wrap: wrap;
 }
-.completed-card {
-  opacity: 0.7;
-}
-.completed-card h3 {
-  text-decoration: line-through;
-}
 .note-card {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -1381,5 +1375,96 @@ dialog::backdrop {
     font-size: 11px;
     padding: 6px 3px;
     white-space: normal;
+  }
+}
+
+/* Status color is paired with text, keeping cards readable without relying on hue. */
+.card.status-open {
+  background: #172331;
+  border-color: #34475b;
+}
+.card.status-in-motion {
+  background: #302b19;
+  border-color: #78632e;
+}
+.card.status-completed {
+  background: #133026;
+  border-color: #35785d;
+}
+.card {
+  position: relative;
+}
+.card-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.status-label {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #283a4d;
+  color: #d3e0ed;
+}
+.status-in-motion .status-label {
+  background: #57491f;
+  color: #ffe29b;
+}
+.status-completed .status-label {
+  background: #22553f;
+  color: #b5efcb;
+}
+.status-completed .card-badges {
+  padding-right: 42px;
+  min-height: 30px;
+}
+.completion-mark {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #7ccea0;
+  border-radius: 7px;
+  background: #2c6d4b;
+  color: #e0ffe9;
+  font-size: 22px;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 2px 7px #0003;
+}
+.card.status-completed h3 {
+  color: #e0f2e7;
+  text-decoration: none;
+}
+.card.status-completed .card-preview {
+  color: #b4cdbd;
+}
+.card.status-completed .card-footer {
+  color: #bcd7c6;
+  border-color: #315444;
+}
+.card.status-in-motion .card-preview {
+  color: #c7bfa5;
+}
+.card.status-in-motion .card-footer {
+  color: #d4c9a8;
+  border-color: #514629;
+}
+.card.status-open:hover {
+  border-color: #6a8ba4;
+}
+.card.status-in-motion:hover {
+  border-color: #b69a4f;
+}
+.card.status-completed:hover {
+  border-color: #6caf85;
+}
+@media (max-width: 760px) {
+  .status-label {
+    font-size: 12px;
   }
 }

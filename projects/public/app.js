@@ -164,7 +164,8 @@ function renderBoard(p) {
     );
   $("#stats").replaceChildren();
   [
-    [cards.filter((c) => !c.completed).length, "open tasks"],
+    [cards.filter((c) => M.taskStatus(c) === "open").length, "open"],
+    [cards.filter((c) => M.taskStatus(c) === "in-motion").length, "in motion"],
     [cards.filter((c) => c.completed).length, "completed"],
     [`${checklistDone}/${checklistTotal}`, "checklist items"],
   ].forEach(([n, label]) => {
@@ -250,18 +251,27 @@ function renderBoard(p) {
   renderOverview(p);
 }
 function cardTile(p, l, c, { context = false } = {}) {
-  const item = el("article", "card" + (c.completed ? " completed-card" : ""));
+  const status = M.taskStatus(c);
+  const label = {
+    open: "Open",
+    "in-motion": "In motion",
+    completed: "Completed",
+  }[status];
+  const item = el("article", "card status-" + status);
   item.tabIndex = 0;
   item.setAttribute("role", "button");
-  item.setAttribute("aria-label", "Edit " + c.title);
-  item.append(
-    el(
-      "span",
-      "priority " + c.priority,
-      c.completed ? "Completed" : c.priority,
-    ),
-    el("h3", "", c.title),
+  item.setAttribute("aria-label", "Edit " + c.title + " — " + label);
+  const badges = el("div", "card-badges");
+  badges.append(
+    el("span", "status-label", label),
+    el("span", "priority " + c.priority, c.priority),
   );
+  item.append(badges, el("h3", "", c.title));
+  if (c.completed) {
+    const mark = el("span", "completion-mark", "✓");
+    mark.setAttribute("aria-hidden", "true");
+    item.append(mark);
+  }
   if (context) item.append(el("p", "task-context", p.name + " / " + l.name));
   if (c.description) item.append(el("p", "card-preview", c.description));
   const footer = el("div", "card-footer");
@@ -437,7 +447,7 @@ function renderWorkspace() {
     [
       [overdue.length, "Overdue"],
       [due.length, "Due today"],
-      [tasks.length, "Open across projects"],
+      [tasks.length, "Active across projects"],
     ].forEach(([n, t]) => {
       const s = el("div", "summary-card");
       s.append(el("strong", "", String(n)), el("span", "muted", t));
@@ -977,9 +987,10 @@ function editCard(projectId, listId, cardId, noteId) {
     title,
     field("Description & notes", "description", c.description, "textarea"),
     row,
-    select("Task status", "completed", String(c.completed), [
-      ["false", "Open"],
-      ["true", "Completed"],
+    select("Task status", "status", M.taskStatus(c), [
+      ["open", "Open"],
+      ["in-motion", "In motion"],
+      ["completed", "Completed"],
     ]),
     select("Repeat", "repeat", c.repeat, [
       ["none", "Does not repeat"],
@@ -1031,6 +1042,7 @@ function editCard(projectId, listId, cardId, noteId) {
             : 0,
           milestoneId: fd.get("milestoneId"),
           completed: previous?.completed || false,
+          inMotion: fd.get("status") === "in-motion",
           checklist: Array.from(rows.children)
             .map((r) => ({
               id: r.dataset.id,
@@ -1049,9 +1061,9 @@ function editCard(projectId, listId, cardId, noteId) {
           0,
           value,
         );
-        if (fd.get("completed") === "true" && !value.completed)
+        if (fd.get("status") === "completed" && !value.completed)
           M.completeTask(p, target, value);
-        else value.completed = fd.get("completed") === "true";
+        else value.completed = fd.get("status") === "completed";
       });
     },
     existing

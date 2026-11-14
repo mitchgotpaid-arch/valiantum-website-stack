@@ -47,6 +47,7 @@
         for (const c of l.cards || []) {
           c.archived ??= false;
           c.completed ??= /^(done|complete|completed)$/i.test(l.name.trim());
+          c.inMotion ??= false;
           c.repeat ||= "none";
           c.repeatDay ??= c.due ? Number(c.due.slice(-2)) : 0;
           c.milestoneId ||= "";
@@ -122,6 +123,7 @@
                 validDate(c.due) &&
                 ["Low", "Medium", "High"].includes(c.priority) &&
                 bool(c.completed) &&
+                (c.inMotion === undefined || bool(c.inMotion)) &&
                 bool(c.archived) &&
                 ["none", "daily", "weekly", "monthly"].includes(c.repeat) &&
                 Number.isInteger(c.repeatDay) &&
@@ -170,6 +172,7 @@
       priority: "Medium",
       checklist: [],
       completed: false,
+      inMotion: false,
       archived: false,
       repeat: "none",
       repeatDay: 0,
@@ -220,6 +223,7 @@
                   id: makeId(),
                   due: "",
                   completed: false,
+                  inMotion: false,
                   archived: false,
                   repeatDay: 0,
                   nextOccurrenceId: "",
@@ -245,6 +249,7 @@
   ) {
     if (card.completed) return null;
     card.completed = true;
+    card.inMotion = false;
     if (card.repeat === "none" || card.nextOccurrenceId) return null;
     const anchor =
       card.repeatDay ||
@@ -254,6 +259,7 @@
         ...copy(card),
         id: makeId(),
         completed: false,
+        inMotion: false,
         archived: false,
         nextOccurrenceId: "",
         due: nextDate(card.due, card.repeat, today, anchor),
@@ -359,7 +365,10 @@
       },
     ];
   }
+  const taskStatus = (card) =>
+    card.completed ? "completed" : card.inMotion ? "in-motion" : "open";
   return {
+    taskStatus,
     copy,
     localDay,
     validDate,
