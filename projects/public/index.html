@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Valiantum Projects</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <a class="brand" href="/"><img src="/logo.png" alt="Valiantum" /></a>
+        <div class="workspace-label">
+          <span class="workspace-icon">V</span>
+          <div>
+            Valiantum<span class="muted small">Personal workspace</span>
+          </div>
+          <span class="private-dot" title="Private">●</span>
+        </div>
+        <div class="sidebar-heading">
+          YOUR PROJECTS<button
+            id="new-project"
+            class="icon"
+            aria-label="Create project"
+          >
+            +
+          </button>
+        </div>
+        <nav id="projects"></nav>
+        <div class="sidebar-bottom">
+          <span class="lock">◈ &nbsp; Private workspace</span
+          ><a href="/api/export">↓ Export all projects</a
+          ><button id="logout">Sign out ↗</button>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div class="breadcrumb">
+            Workspace <span>/</span> <strong id="crumb">Projects</strong>
+          </div>
+          <div class="header-right">
+            <span id="save-state" role="status">All changes saved</span
+            ><span class="avatar">V</span>
+          </div>
+        </header>
+        <section id="empty" class="empty" hidden>
+          <p class="eyebrow">MAKE ROOM FOR WHAT’S NEXT</p>
+          <h1>Your next great project<br />starts here.</h1>
+          <p class="muted">
+            One place for your plans, priorities, and progress.
+          </p>
+          <button class="primary" id="first-project">
+            + Create your first project
+          </button>
+        </section>
+        <section id="project-view" hidden>
+          <div class="project-heading">
+            <div>
+              <p class="eyebrow">VALIANTUM / PROJECTS</p>
+              <h1 id="project-name"></h1>
+              <p id="project-description" class="muted"></p>
+            </div>
+            <button id="project-settings">Project details ↗</button>
+          </div>
+          <div class="board-toolbar">
+            <div class="view-tabs">
+              <button class="active" id="board-tab">▦ &nbsp; Board</button
+              ><button id="info-tab">ⓘ &nbsp; Overview</button>
+            </div>
+            <div class="board-actions">
+              <input
+                id="search"
+                type="search"
+                placeholder="Search tasks…"
+                aria-label="Search tasks"
+              /><button id="add-list">+ Add list</button>
+            </div>
+          </div>
+          <div id="stats" class="stats"></div>
+          <div id="board" class="board"></div>
+          <section id="overview" class="overview" hidden></section>
+        </section>
+        <p id="app-error" role="alert"></p>
+      </main>
+    </div>
+    <dialog id="editor">
+      <form id="editor-form">
+        <div class="dialog-header">
+          <p class="eyebrow" id="editor-kind"></p>
+          <button
+            type="button"
+            class="icon"
+            id="close-editor"
+            aria-label="Close dialog"
+          >
+            ×
+          </button>
+        </div>
+        <h2 id="editor-title"></h2>
+        <div id="editor-fields"></div>
+        <p id="editor-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" id="delete-item" class="danger">Delete</button>
+          <div>
+            <button type="button" id="cancel-editor">Cancel</button
+            ><button type="submit" class="primary">Save changes</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

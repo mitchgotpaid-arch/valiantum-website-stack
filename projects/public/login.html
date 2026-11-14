@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in · Valiantum Projects</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/login.js" defer></script>
+  </head>
+  <body class="login-page">
+    <main class="login-panel">
+      <img class="login-logo" src="/logo.png" alt="Valiantum" />
+      <p class="eyebrow">YOUR PRIVATE WORKSPACE</p>
+      <h1>Great ideas.<br />Forward motion.</h1>
+      <p class="muted">
+        Sign in to Valiantum Projects to pick up where you left off.
+      </p>
+      <form id="login">
+        <label
+          >Email<input
+            name="email"
+            type="email"
+            autocomplete="username"
+            required /></label
+        ><label
+          >Password<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <p id="error" role="alert"></p>
+        <button class="primary" type="submit">
+          Sign in to Projects <span>→</span>
+        </button>
+      </form>
+      <div class="login-footer">
+        VALIANTUM <span>PROJECTS / PRIVATE ACCESS</span>
+      </div>
+    </main>
+  </body>
+</html>
