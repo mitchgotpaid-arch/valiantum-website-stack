@@ -27,7 +27,11 @@
             +
           </button>
         </div>
-        <nav id="projects"></nav>
+        <label class="mobile-project-picker">
+          <span class="sr-only">Project</span>
+          <select id="project-picker" aria-label="Project"></select>
+        </label>
+        <nav id="projects" aria-label="Projects"></nav>
         <div class="sidebar-bottom">
           <span class="lock">◈ &nbsp; Private workspace</span
           ><a href="/api/export">↓ Export all projects</a
@@ -97,7 +101,7 @@
             ×
           </button>
         </div>
-        <h2 id="editor-title"></h2>
+        <h2 id="editor-title" tabindex="-1"></h2>
         <div id="editor-fields"></div>
         <p id="editor-error" role="alert"></p>
         <div class="dialog-actions">

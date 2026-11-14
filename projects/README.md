@@ -33,3 +33,9 @@ Only the configured owner can log in; there is no public signup. The password is
 All projects and APIs require authentication. Login assets, the logo, and `/health` are accessible without a session. No sensitive project data is bundled into client code. Authenticated responses disable caching; search engine directives are defense in depth only. Project text is rendered as text, and resource links permit only HTTP(S). The export contains private project data: store it securely.
 
 To rotate the owner password, generate a new hash, replace `PROJECTS_PASSWORD_HASH` in hPanel, and restart the app. Change `PROJECTS_EMAIL` there as needed. This first version has no password reset email, collaboration roles, file attachments, or real-time sync. Assignees are text labels for planning. Task completion is represented by the list you move a task into, and checklist completion is tracked separately.
+
+## Mobile usage
+
+At phone widths (up to 760px), use the Project dropdown to switch projects. Lists stack vertically so every column is reachable with normal page scrolling. Tap a card to edit it; use **List** to move it and **Position** to reorder it. These controls also work with a keyboard on desktop. Desktop mouse drag-and-drop remains available.
+
+Phone layouts use larger touch targets and 16px form inputs, and editors adapt to the visible viewport with sticky save/cancel actions. Browser verification covered widths 320, 390, 430, 768, 844 and 1280px, including narrow-screen editing, checklist completion, due dates, project switching, search, list creation, task movement/ordering and persistence across reloads. Physical iOS/Android and on-screen keyboard behavior still warrant device testing. The workspace requires an internet connection; it does not offer offline editing.

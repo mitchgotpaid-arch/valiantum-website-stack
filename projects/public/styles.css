@@ -674,7 +674,7 @@ dialog::backdrop {
     margin: 20px 22px;
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .app {
     display: block;
   }
@@ -761,5 +761,279 @@ dialog::backdrop {
   }
   .login-panel h1 {
     font-size: 40px;
+  }
+}
+
+/* Keep phone interactions usable without changing the desktop board. */
+.mobile-project-picker {
+  display: none;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.project-heading > div {
+  min-width: 0;
+}
+.project-heading h1,
+.project-heading .muted,
+.list-heading h3 {
+  overflow-wrap: anywhere;
+}
+.breadcrumb {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-right {
+  flex-shrink: 0;
+}
+.check-row input[type="text"] {
+  min-width: 0;
+}
+#editor-title:focus {
+  outline: none;
+}
+@media (max-width: 760px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+  button,
+  input,
+  select,
+  .sidebar-bottom a {
+    min-height: 44px;
+  }
+  button,
+  a,
+  .card {
+    touch-action: manipulation;
+  }
+  input,
+  textarea,
+  select,
+  .board-actions input {
+    font-size: 16px;
+  }
+  aside {
+    padding: 12px 18px 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+  .brand {
+    padding: 0;
+    border: 0;
+    display: flex;
+    align-items: center;
+  }
+  .brand img {
+    width: 85px;
+    max-height: 64px;
+    object-fit: contain;
+  }
+  .sidebar-heading {
+    margin: 0;
+    justify-self: end;
+    gap: 10px;
+  }
+  .sidebar-heading .icon {
+    min-width: 44px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .mobile-project-picker {
+    display: block;
+    grid-column: 1 / -1;
+    margin: 0;
+    min-width: 0;
+  }
+  .mobile-project-picker select {
+    margin: 0;
+    text-overflow: ellipsis;
+  }
+  #projects {
+    display: none;
+  }
+  .sidebar-bottom {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    border: 0;
+    gap: 14px;
+  }
+  .sidebar-bottom a,
+  .sidebar-bottom button {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  header {
+    height: 52px;
+    gap: 10px;
+  }
+  .header-right {
+    gap: 8px;
+  }
+  .header-right #save-state {
+    font-size: 10px;
+    max-width: 85px;
+  }
+  .breadcrumb {
+    font-size: 11px;
+  }
+  .breadcrumb span {
+    padding: 0 5px;
+  }
+  .avatar {
+    display: none;
+  }
+  .project-heading {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+  .project-heading h1 {
+    font-size: 28px;
+  }
+  .board-toolbar {
+    gap: 4px;
+  }
+  .board-actions input {
+    min-width: 0;
+    width: 0;
+  }
+  .board-actions button {
+    flex-shrink: 0;
+  }
+  .stats {
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+    min-height: 0;
+    gap: 16px;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+  .list {
+    width: 100%;
+    min-width: 0;
+    min-height: 120px;
+  }
+  .list-heading {
+    margin-bottom: 8px;
+  }
+  .list-heading h3 {
+    font-size: 14px;
+  }
+  .list-heading .icon {
+    min-width: 44px;
+  }
+  .card {
+    cursor: pointer;
+  }
+  .card:hover {
+    transform: none;
+  }
+  .card h3 {
+    font-size: 15px;
+  }
+  .card-preview {
+    font-size: 13px;
+  }
+  .card-footer {
+    font-size: 12px;
+  }
+  .priority {
+    font-size: 11px;
+  }
+  .add-card {
+    font-size: 14px;
+  }
+  dialog {
+    padding: 18px;
+    width: 100%;
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 24px);
+    overscroll-behavior: contain;
+  }
+  .dialog-header {
+    align-items: center;
+  }
+  .dialog-header .icon {
+    min-width: 44px;
+    margin: -8px -8px 0 0;
+  }
+  .dialog-actions {
+    position: sticky;
+    bottom: -18px;
+    background: #0c1423;
+    border-top: 1px solid var(--border);
+    padding: 14px 0 max(14px, env(safe-area-inset-bottom));
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dialog-actions > div {
+    margin-left: auto;
+    gap: 8px;
+  }
+  .dialog-actions button {
+    font-size: 13px;
+  }
+  .field-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  .check-row {
+    gap: 8px;
+  }
+  .check-row input[type="checkbox"] {
+    min-width: 30px;
+    width: 30px;
+    min-height: 30px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+  .check-row .icon {
+    min-width: 44px;
+    flex-shrink: 0;
+  }
+  .overview {
+    margin: 0 18px 28px;
+    padding: 20px;
+  }
+  #app-error {
+    margin: 18px;
+    overflow-wrap: anywhere;
+  }
+  .login-page {
+    min-height: 100dvh;
+    padding: 24px 20px max(24px, env(safe-area-inset-bottom));
+  }
+  .login-logo {
+    width: 135px;
+    margin-bottom: 24px;
+  }
+  .login-panel h1 {
+    font-size: 34px;
+  }
+  .login-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .login-footer span {
+    float: none;
   }
 }

@@ -74,6 +74,16 @@ function render() {
     b.onclick = () => selectProject(item.id);
     $("#projects").append(b);
   });
+  const picker = $("#project-picker");
+  picker.replaceChildren();
+  for (const item of state.projects) {
+    const option = el("option", "", item.name);
+    option.value = item.id;
+    option.selected = item.id === active;
+    picker.append(option);
+  }
+  picker.disabled = !p;
+  if (!p) picker.append(el("option", "", "No projects yet"));
   $("#empty").hidden = !!p;
   $("#project-view").hidden = !p;
   $("#crumb").textContent = p?.name || "Projects";
@@ -127,7 +137,7 @@ function render() {
       .forEach((card) => {
         const item = el("article", "card");
         item.tabIndex = 0;
-        item.draggable = true;
+        item.draggable = matchMedia("(pointer: fine)").matches;
         item.setAttribute("role", "button");
         item.setAttribute("aria-label", "Edit " + card.title);
         item.append(
@@ -286,8 +296,9 @@ function openEditor(kind, title, fields, onSave, onDelete) {
   $("#editor-error").textContent = "";
   $("#delete-item").hidden = !onDelete;
   $("#editor").showModal();
-  const first = $("#editor-fields input");
-  if (first) first.focus();
+  $("#editor").scrollTop = 0;
+  if (matchMedia("(max-width: 760px)").matches) $("#editor-title").focus();
+  else $("#editor-fields input")?.focus();
 }
 function editProject(existing) {
   const p = existing || { name: "", description: "", links: "" };
@@ -413,6 +424,37 @@ function editCard(list, existing) {
     if (rows.children.length < 100) addCheck();
   };
   checklist.append(rows, add);
+  // Explicit ordering works with touch and keyboard, without a drag gesture.
+  const listField = select(
+    "List",
+    "list",
+    list.id,
+    project().lists.map((l) => [l.id, l.name]),
+  );
+  const positionField = select("Position", "position", "", []);
+  function updatePositions() {
+    const target = project().lists.find(
+      (l) => l.id === listField.querySelector("select").value,
+    );
+    const others = target.cards.filter((card) => card.id !== existing?.id);
+    const positions = positionField.querySelector("select");
+    positions.replaceChildren();
+    others.forEach((card, index) => {
+      const option = el("option", "", `Before: ${card.title}`);
+      option.value = String(index);
+      positions.append(option);
+    });
+    const last = el("option", "", "End of list");
+    last.value = String(others.length);
+    positions.append(last);
+    const current =
+      existing && target.id === list.id
+        ? list.cards.findIndex((card) => card.id === existing.id)
+        : others.length;
+    positions.value = String(Math.max(0, current));
+  }
+  updatePositions();
+  listField.querySelector("select").onchange = updatePositions;
   openEditor(
     "TASK DETAILS",
     existing ? "Keep things moving." : "What’s next?",
@@ -421,12 +463,8 @@ function editCard(list, existing) {
       field("Description & notes", "description", c.description, "textarea"),
       row,
       field("Assignee", "assignee", c.assignee, "text", 150),
-      select(
-        "List",
-        "list",
-        list.id,
-        project().lists.map((l) => [l.id, l.name]),
-      ),
+      listField,
+      positionField,
       checklist,
     ],
     (fd) => {
@@ -449,13 +487,13 @@ function editCard(list, existing) {
       return change(() => {
         const source = project().lists.find((l) => l.id === list.id),
           target = project().lists.find((l) => l.id === fd.get("list"));
-        const at = existing
-          ? source.cards.findIndex((x) => x.id === existing.id)
-          : -1;
         if (existing)
           source.cards = source.cards.filter((x) => x.id !== existing.id);
-        if (source === target && at >= 0) target.cards.splice(at, 0, value);
-        else target.cards.push(value);
+        const at = Math.min(
+          Math.max(0, Number(fd.get("position")) || 0),
+          target.cards.length,
+        );
+        target.cards.splice(at, 0, value);
       });
     },
     existing
@@ -499,6 +537,7 @@ $("#new-project").onclick = $("#first-project").onclick = () => editProject();
 $("#project-settings").onclick = () => editProject(project());
 $("#add-list").onclick = () => editList();
 $("#search").oninput = render;
+$("#project-picker").onchange = (event) => selectProject(event.target.value);
 $("#board-tab").onclick = () => {
   view = "board";
   render();
