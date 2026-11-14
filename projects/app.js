@@ -5,47 +5,7 @@ const { promisify } = require("node:util");
 const { createStore } = require("./store");
 const derive = promisify(scrypt);
 const SESSION_AGE = 12 * 60 * 60 * 1000;
-function validWorkspace(data) {
-  const text = (x, n) => typeof x === "string" && x.length <= n;
-  if (!Array.isArray(data.projects) || data.projects.length > 100) return false;
-  const ids = new Set();
-  const id = (x) => text(x, 80) && x.length > 0 && !ids.has(x) && !!ids.add(x);
-  return data.projects.every(
-    (p) =>
-      id(p.id) &&
-      text(p.name, 160) &&
-      p.name.trim() &&
-      text(p.description, 10000) &&
-      text(p.links, 5000) &&
-      Array.isArray(p.lists) &&
-      p.lists.length <= 30 &&
-      p.lists.every(
-        (l) =>
-          id(l.id) &&
-          text(l.name, 100) &&
-          l.name.trim() &&
-          Array.isArray(l.cards) &&
-          l.cards.length <= 500 &&
-          l.cards.every(
-            (c) =>
-              id(c.id) &&
-              text(c.title, 300) &&
-              c.title.trim() &&
-              text(c.description, 10000) &&
-              text(c.assignee, 150) &&
-              text(c.due, 10) &&
-              (!c.due || /^\d{4}-\d{2}-\d{2}$/.test(c.due)) &&
-              ["Low", "Medium", "High"].includes(c.priority) &&
-              Array.isArray(c.checklist) &&
-              c.checklist.length <= 100 &&
-              c.checklist.every(
-                (i) =>
-                  id(i.id) && text(i.text, 500) && typeof i.done === "boolean",
-              ),
-          ),
-      ),
-  );
-}
+const { validWorkspace, normalizeWorkspace } = require("./public/model");
 async function createApp(env = process.env) {
   const production = env.NODE_ENV === "production";
   const hash = env.PROJECTS_PASSWORD_HASH || "";
@@ -139,27 +99,37 @@ async function createApp(env = process.env) {
   });
   app.get("/api/workspace", auth, async (req, res, next) => {
     try {
-      res.json(await store.read());
+      res.json(normalizeWorkspace(await store.read()));
     } catch (e) {
       next(e);
     }
   });
   let queue = Promise.resolve();
   app.put("/api/workspace", auth, (req, res, next) => {
+    if (req.get("X-Workspace-Version") !== "2")
+      return res
+        .status(426)
+        .json({
+          error:
+            "Reload the app to use the latest workspace version before saving.",
+        });
     if (!Number.isSafeInteger(req.body?.revision) || !validWorkspace(req.body))
       return res.status(400).json({ error: "Invalid workspace." });
     const task = queue.then(async () => {
       const ok = await store.write(
-        { projects: req.body.projects },
+        {
+          schemaVersion: 2,
+          projects: req.body.projects,
+          notes: req.body.notes,
+          templates: req.body.templates,
+        },
         req.body.revision,
       );
       if (!ok)
-        return res
-          .status(409)
-          .json({
-            error:
-              "This workspace changed in another tab. Reload before editing.",
-          });
+        return res.status(409).json({
+          error:
+            "This workspace changed in another tab. Reload before editing.",
+        });
       res.json({ revision: req.body.revision + 1 });
     });
     queue = task.catch(() => {});
@@ -167,7 +137,9 @@ async function createApp(env = process.env) {
   });
   app.get("/api/export", auth, async (req, res, next) => {
     try {
-      res.attachment("valiantum-projects.json").json(await store.read());
+      res
+        .attachment("valiantum-projects.json")
+        .json(normalizeWorkspace(await store.read()));
     } catch (e) {
       next(e);
     }

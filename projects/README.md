@@ -32,10 +32,24 @@ Only the configured owner can log in; there is no public signup. The password is
 
 All projects and APIs require authentication. Login assets, the logo, and `/health` are accessible without a session. No sensitive project data is bundled into client code. Authenticated responses disable caching; search engine directives are defense in depth only. Project text is rendered as text, and resource links permit only HTTP(S). The export contains private project data: store it securely.
 
-To rotate the owner password, generate a new hash, replace `PROJECTS_PASSWORD_HASH` in hPanel, and restart the app. Change `PROJECTS_EMAIL` there as needed. This first version has no password reset email, collaboration roles, file attachments, or real-time sync. Assignees are text labels for planning. Task completion is represented by the list you move a task into, and checklist completion is tracked separately.
+To rotate the owner password, generate a new hash, replace `PROJECTS_PASSWORD_HASH` in hPanel, and restart the app. Change `PROJECTS_EMAIL` there as needed. This app has no password reset email, collaboration roles, file attachments, or real-time sync. Assignees are optional text labels. Task status and checklist completion are tracked separately.
 
 ## Mobile usage
 
 At phone widths (up to 760px), use the Project dropdown to switch projects. Lists stack vertically so every column is reachable with normal page scrolling. Tap a card to edit it; use **List** to move it and **Position** to reorder it. These controls also work with a keyboard on desktop. Desktop mouse drag-and-drop remains available.
 
 Phone layouts use larger touch targets and 16px form inputs, and editors adapt to the visible viewport with sticky save/cancel actions. Browser verification covered widths 320, 390, 430, 768, 844 and 1280px, including narrow-screen editing, checklist completion, due dates, project switching, search, list creation, task movement/ordering and persistence across reloads. Physical iOS/Android and on-screen keyboard behavior still warrant device testing. The workspace requires an internet connection; it does not offer offline editing.
+
+## Personal workspace features (v2)
+
+- **Today** combines open tasks from every active project: overdue, due today, next seven days, and tasks without a date. Upcoming milestones appear alongside them. Future tasks beyond seven days remain on their project boards.
+- **Ideas & notes** is your private notebook. Capture an idea without a title (the first line becomes its title), pin important notes, search title/body, or link a note to a project. Open a saved note and choose **Turn into a task**; the original stays in your notebook. Notes are plain text.
+- **Device drafts** preserve unfinished note text in that browser's local storage. Save syncs the note to MySQL across devices. Drafts stay on that device until saved, including after sign-out. This is recovery for interrupted writing, not an offline app; opening the app and syncing still need a connection.
+- **Recurring tasks** support daily, weekly and monthly schedules. In the task editor, set Repeat and mark Task status Completed to create the next occurrence, with checklist progress reset. Schedules advance from the prior due date, or today when no date exists. Month-end dates clamp to the last day while retaining the original monthly anchor. Reopening and recompleting the same occurrence does not create a duplicate. There is no background scheduler or email/push reminder.
+- **Templates** include product launch and content workflows. In Project details, use **Save as template** for your own reusable plan. New projects copy active lists, cards and milestones with fresh IDs; due dates and completion reset, while task descriptions and recurrence settings remain.
+- **Milestones** live in a project's Overview. Add a target date and link tasks through the task editor. Linked-task progress is calculated automatically; milestone completion itself is explicit.
+- **Archive** replaces permanent deletion for projects, lists, tasks, notes, templates and milestones. Archived parents hide their children until restored. Use Archive to restore anything; Project details can bulk-archive completed tasks. **Undo last change** reverses the last successful edit in the current tab and session, including recurring task creation; it is a one-step undo, not a history log.
+
+Task status is explicit. Moving a card between custom lists does not change completion: set **Task status → Completed** for Today, recurrence and milestone progress to recognize completion.
+
+Existing JSON documents upgrade in memory without a destructive database migration. Legacy tasks already in a list named Done/Complete/Completed initialize as completed. The first successful edit persists the expanded document. Stale clients without `X-Workspace-Version: 2` cannot write, which prevents an old tab from dropping new note/template fields. All new data remains behind the existing authenticated API and is included in JSON exports.
