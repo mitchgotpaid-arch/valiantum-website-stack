@@ -71,3 +71,7 @@ Legacy list containers remain in storage to preserve existing records, but custo
 ## Simplified card form
 
 The card editor starts with Card title, Card stage, and Checklist, followed by the remaining details. Milestone controls and displays have been removed from cards, Overview, Today, and Archive. Legacy milestone fields remain compatible with existing stored documents; there is no destructive data migration.
+
+## Archived notes
+
+Ideas & notes now has Active notes and Archived notes tabs with counts. Archiving a note keeps its saved contents and opens Archived notes automatically. Search works within the selected tab. Open an archived note to read its full text, or use Restore note to return it to the active notebook. The selected tab is remembered on that device. The general Archive view remains available too.

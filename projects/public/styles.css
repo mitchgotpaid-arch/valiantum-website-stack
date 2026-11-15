@@ -1535,3 +1535,21 @@ dialog::backdrop {
     bottom: calc(max(18px, env(safe-area-inset-bottom)) + 58px);
   }
 }
+
+.notes-tabs {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.archive-note-help {
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.archived-note-title,
+.archived-note-body {
+  overflow-wrap: anywhere;
+}
+.archived-note-body {
+  white-space: pre-wrap;
+  margin-top: 18px;
+  line-height: 1.8;
+}

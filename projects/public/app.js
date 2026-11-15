@@ -22,7 +22,11 @@ let state = M.normalizeWorkspace({ projects: [], revision: 0 }),
   blocked = false,
   dragging = null,
   undoState = null,
-  noteQuery = "";
+  noteQuery = "",
+  notesView =
+    localStorage.getItem("valiantum-notes-view") === "archived"
+      ? "archived"
+      : "active";
 const builtinTemplates = M.builtins();
 const project = () =>
   state.projects.find((p) => p.id === active && !p.archived);
@@ -489,6 +493,65 @@ function renderWorkspace() {
         button("+ New note", () => editNote(), "primary"),
       ),
     );
+    const tabs = el("div", "view-tabs notes-tabs");
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Note views");
+    const archived = notesView === "archived";
+    for (const [value, label] of [
+      ["active", "Active notes"],
+      ["archived", "Archived notes"],
+    ]) {
+      const count = state.notes.filter(
+        (n) => n.archived === (value === "archived"),
+      ).length;
+      const tab = button(
+        `${label} (${count})`,
+        () => {
+          setNotesView(value);
+          noteQuery = "";
+          renderWorkspace();
+          document.querySelector("#notes-tab-" + value).focus();
+        },
+        value === notesView ? "active" : "",
+      );
+      tab.id = "notes-tab-" + value;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(value === notesView));
+      tab.setAttribute("aria-controls", "notes-panel");
+      tab.tabIndex = value === notesView ? 0 : -1;
+      tab.onkeydown = (event) => {
+        if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+          event.preventDefault();
+          const next =
+            event.key === "Home"
+              ? "active"
+              : event.key === "End"
+                ? "archived"
+                : value === "active"
+                  ? "archived"
+                  : "active";
+          setNotesView(next);
+          noteQuery = "";
+          renderWorkspace();
+          document.querySelector("#notes-tab-" + next).focus();
+        }
+      };
+      tabs.append(tab);
+    }
+    box.append(tabs);
+    const panel = el("section");
+    panel.id = "notes-panel";
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", "notes-tab-" + notesView);
+    box.append(panel);
+    if (archived)
+      panel.append(
+        el(
+          "p",
+          "archive-note-help",
+          "Your archived notes are kept here. Open any note to read the full text, or restore it to Active notes.",
+        ),
+      );
     const search = el("form", "note-search"),
       input = el("input");
     input.type = "search";
@@ -503,12 +566,12 @@ function renderWorkspace() {
       noteQuery = input.value;
       renderWorkspace();
     };
-    box.append(search);
+    panel.append(search);
     const query = noteQuery.trim().toLowerCase();
     const notes = state.notes
       .filter(
         (n) =>
-          !n.archived &&
+          n.archived === archived &&
           [n.title, n.body].join(" ").toLowerCase().includes(query),
       )
       .sort(
@@ -516,13 +579,19 @@ function renderWorkspace() {
           Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt,
       );
     if (notes.length)
-      box.append(section("Your notes", notes, (n) => noteTile(n)));
+      panel.append(
+        section(archived ? "Archived notes" : "Your notes", notes, (n) =>
+          noteTile(n),
+        ),
+      );
     else
-      box.append(
+      panel.append(
         emptyMessage(
           query
             ? "No notes match that search."
-            : "Capture a thought now. You can link it to a project or turn it into a task later.",
+            : archived
+              ? "No archived notes yet. Notes you archive will stay here until you restore them."
+              : "Capture a thought now. You can link it to a project or turn it into a task later.",
         ),
       );
   } else if (screen === "templates") {
@@ -647,9 +716,41 @@ function noteTile(note) {
       (linked ? linked.name + " · " : "") +
         new Date(note.updatedAt).toLocaleDateString(),
     ),
-    button("Open note", () => editNote(note.id)),
+    button("Open note", () =>
+      note.archived ? readArchivedNote(note.id) : editNote(note.id),
+    ),
   );
+  if (note.archived)
+    tile.append(button("Restore note", () => restoreNote(note.id)));
   return tile;
+}
+function setNotesView(value) {
+  notesView = value;
+  localStorage.setItem("valiantum-notes-view", value);
+}
+async function restoreNote(noteId) {
+  return change(() => {
+    const note = state.notes.find((n) => n.id === noteId);
+    note.archived = false;
+    note.updatedAt = Date.now();
+  });
+}
+function readArchivedNote(noteId) {
+  const note = state.notes.find((n) => n.id === noteId);
+  if (!note) return;
+  const title = el("h3", "archived-note-title", note.title),
+    body = el("p", "archived-note-body", note.body || "No additional notes.");
+  const linked = state.projects.find((p) => p.id === note.projectId);
+  const fields = [title, body];
+  if (linked) fields.push(el("p", "field-help", "Project: " + linked.name));
+  openEditor(
+    "ARCHIVED NOTE",
+    "Kept for whenever you need it.",
+    fields,
+    () => restoreNote(noteId),
+    null,
+  );
+  $("#editor-form button[type=submit]").textContent = "Restore note";
 }
 function field(label, name, value = "", type = "text", max = 10000) {
   const l = el("label", "", label),
@@ -1189,15 +1290,23 @@ function editNote(noteId, projectId = "") {
         try {
           localStorage.removeItem(draftKey);
         } catch {}
+        setNotesView("active");
         setScreen("ideas");
       }
       return ok;
     },
     noteId
-      ? () =>
-          change(
+      ? async () => {
+          const ok = await change(
             () => (state.notes.find((n) => n.id === noteId).archived = true),
-          )
+          );
+          if (ok) {
+            setNotesView("archived");
+            noteQuery = "";
+            setScreen("ideas");
+          }
+          return ok;
+        }
       : null,
     extra,
   );
