@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentForReviewSchema, reviewDecisionSchema } from "./schema";
+import { briefingSocialDraftSchema, contentForReviewSchema, reviewDecisionSchema, reviseContentSchema } from "./schema";
 
 const brandId = "11111111-1111-4111-8111-111111111111";
 const contentId = "22222222-2222-4222-8222-222222222222";
@@ -30,5 +30,15 @@ describe("content review schemas", () => {
 
   it("caps review notes", () => {
     expect(reviewDecisionSchema.safeParse({ contentId, decision: "REJECTED", notes: "x".repeat(4_001) }).success).toBe(false);
+  });
+
+  it("requires meaningful copy before resubmitting an edited draft", () => {
+    expect(reviseContentSchema.safeParse({ contentId, title: "  Update  ", body: "  Ready for review  " }).success).toBe(true);
+    expect(reviseContentSchema.safeParse({ contentId, title: "Update", body: "   " }).success).toBe(false);
+  });
+
+  it("accepts only supported briefing handoff channels and ranks", () => {
+    expect(briefingSocialDraftSchema.safeParse({ contentId, rank: "2", channel: "FACEBOOK" }).success).toBe(true);
+    expect(briefingSocialDraftSchema.safeParse({ contentId, rank: "9", channel: "TIKTOK" }).success).toBe(false);
   });
 });

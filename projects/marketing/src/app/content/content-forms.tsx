@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import type { BrandSummary } from "@/data/brands";
 import type { PublicationAttempt } from "@/data/publishing";
-import { createContentAction, createFacebookUnpublishedTestAction, recordDecisionAction, type ContentActionState } from "./actions";
+import type { BriefingSocialChannel } from "@/lib/content/briefing-social-drafts";
+import { createContentAction, createFacebookUnpublishedTestAction, createSocialDraftAction, recordDecisionAction, reviseContentAction, type ContentActionState } from "./actions";
 
 const initialState: ContentActionState = {};
 
@@ -32,6 +33,27 @@ export function ReviewDecisionForm({ contentId }: { contentId: string }) {
     {state.error ? <p className="error" role="alert">{state.error}</p> : null}
     {state.success ? <p className="success" role="status">{state.success}</p> : null}
     <div className="decision-actions"><button className="danger-button" disabled={pending} name="decision" type="submit" value="REJECTED">Reject</button><button className="button" disabled={pending} name="decision" type="submit" value="APPROVED">Approve</button></div>
+  </form>;
+}
+
+export function ReviseContentForm({ contentId, title, body }: { contentId: string; title: string; body: string }) {
+  const [state, action, pending] = useActionState(reviseContentAction.bind(null, contentId), initialState);
+  return <form action={action} className="decision-form">
+    <Field label="Post title" name="title" error={state.fieldErrors?.title?.[0]}><input id="title" name="title" defaultValue={title} maxLength={200} required /></Field>
+    <Field label="Post copy" name="body" hint="Saving returns the draft to review and resets verification and media checks. Approved posts cannot be changed here." error={state.fieldErrors?.body?.[0]}><textarea id="body" name="body" defaultValue={body} rows={10} maxLength={50_000} required /></Field>
+    {state.error ? <p className="error" role="alert">{state.error}</p> : null}
+    {state.success ? <p className="success" role="status">{state.success}</p> : null}
+    <button className="button" disabled={pending} type="submit">{pending ? "Saving…" : "Save and resubmit"}</button>
+  </form>;
+}
+
+export function BriefingSocialDraftForm({ contentId, rank, channel }: { contentId: string; rank: number; channel: BriefingSocialChannel }) {
+  const [state, action, pending] = useActionState(createSocialDraftAction.bind(null, contentId), initialState);
+  return <form action={action} className="briefing-handoff-form">
+    <input name="rank" type="hidden" value={rank} />
+    <input name="channel" type="hidden" value={channel} />
+    {state.error ? <p className="error" role="alert">{state.error}</p> : null}
+    <button className="button" disabled={pending} type="submit">{pending ? "Creating…" : `Create ${channel === "X" ? "X handoff" : channel.toLowerCase() + " draft"}`}</button>
   </form>;
 }
 

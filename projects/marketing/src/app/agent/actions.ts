@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AiDataError, canGenerateForBrand, failAiBudgetReservation, reserveAiBudget, saveGeneratedDailyBriefing, saveGeneratedDraft } from "@/data/ai";
+import { AiDataError, canGenerateForBrand, failAiBudgetReservation, reserveAiBudget, saveCapturedDailyBriefing, saveGeneratedDailyBriefing, saveGeneratedDraft } from "@/data/ai";
 import { AuthenticationRequiredError } from "@/data/auth";
 import { BrandDataError, getBrand } from "@/data/brands";
 import { BRAND_DRAFT_RESERVATION_MICROS, generateBrandDraft } from "@/lib/ai/draft-generator";
@@ -69,7 +69,9 @@ export async function generateDailyBriefingAction(_state: AgentDraftActionState,
       operatorFocus: parsed.data.operatorFocus,
       brand: buildBrandAgentContext(brand),
     }, environment);
-    contentId = await saveGeneratedDailyBriefing(parsed.data.brandId, briefing, reservationId);
+    contentId = briefing.qualityIssues.length
+      ? await saveCapturedDailyBriefing(parsed.data.brandId, briefing, reservationId)
+      : await saveGeneratedDailyBriefing(parsed.data.brandId, briefing, reservationId);
     reservationId = undefined;
   } catch (error) {
     if (reservationId) await consumeFailedReservation(reservationId);
@@ -78,7 +80,7 @@ export async function generateDailyBriefingAction(_state: AgentDraftActionState,
     if (error instanceof AiDataError && error.code === "BUDGET_EXCEEDED") return { error: "The $15 monthly OpenAI budget does not have enough remaining for another briefing. No API request was made." };
     if (error instanceof AiDataError || error instanceof BrandDataError) return { error: "The briefing could not be saved. Nothing was published." };
     if (error instanceof Error && error.message === "OpenAI draft generation is not configured.") return { error: "Add the server-only OpenAI API key before generating briefings." };
-    console.error("[agent] daily briefing generation failed", { error: error instanceof Error ? error.name : "unknown" });
+    console.error(`[agent] daily briefing generation failed: ${error instanceof Error ? `${error.name}: ${error.message.slice(0, 500)}` : "unknown error"}`);
     return { error: "Daily briefing generation failed. Nothing was saved or published. Try again later." };
   }
   revalidatePath("/");
@@ -89,7 +91,7 @@ export async function generateDailyBriefingAction(_state: AgentDraftActionState,
 async function consumeFailedReservation(reservationId: string) {
   try {
     await failAiBudgetReservation(reservationId);
-  } catch (error) {
-    console.error("[agent] failed to close AI budget reservation", { error: error instanceof Error ? error.name : "unknown" });
+  } catch (reservationError) {
+    console.error(`[agent] failed to close AI budget reservation: ${reservationError instanceof Error ? reservationError.name : "unknown error"}`);
   }
 }

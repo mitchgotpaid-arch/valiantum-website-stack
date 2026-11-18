@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AuthenticationRequiredError } from "@/data/auth";
-import { ContentDataError, createContentForReview, recordContentDecision } from "@/data/content";
+import { ContentDataError, createContentForReview, createSocialDraftFromBriefing, getContentReview, recordContentDecision, reviseContentForReview } from "@/data/content";
 import { PublishingDataError } from "@/data/publishing";
-import { contentForReviewFromFormData, reviewDecisionFromFormData } from "@/lib/content/schema";
+import { extractBriefingSocialDrafts } from "@/lib/content/briefing-social-drafts";
+import { briefingSocialDraftSchema, contentForReviewFromFormData, reviewDecisionFromFormData, reviseContentFromFormData } from "@/lib/content/schema";
 import { executeFacebookUnpublishedTest, PublicationExecutionError } from "@/lib/publishing/publication-service";
 
 export interface ContentActionState {
@@ -56,6 +57,44 @@ export async function recordDecisionAction(contentId: string, _state: ContentAct
   revalidatePath("/content");
   revalidatePath(`/content/${contentId}`);
   return { success: parsed.data.decision === "APPROVED" ? "Content approved and recorded." : "Content rejected and recorded." };
+}
+
+export async function reviseContentAction(contentId: string, _state: ContentActionState, formData: FormData): Promise<ContentActionState> {
+  const parsed = reviseContentFromFormData(contentId, formData);
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+  try {
+    await reviseContentForReview(parsed.data);
+  } catch (error) {
+    return publicError(error);
+  }
+  revalidatePath("/content");
+  revalidatePath(`/content/${contentId}`);
+  return { success: "Saved and returned to the approval queue. Verification and media checks must be completed again." };
+}
+
+export async function createSocialDraftAction(contentId: string, _state: ContentActionState, formData: FormData): Promise<ContentActionState> {
+  const parsed = briefingSocialDraftSchema.safeParse({
+    contentId,
+    rank: formData.get("rank"),
+    channel: formData.get("channel"),
+  });
+  if (!parsed.success) return { error: "The selected briefing post is invalid." };
+  let draftId: string;
+  try {
+    const source = await getContentReview(contentId);
+    if (!source || source.contentType !== "DAILY_BRIEFING" || !["NEEDS_REVIEW", "APPROVED"].includes(source.status)) {
+      return { error: "This briefing is not eligible for a social draft." };
+    }
+    if (!source.canEdit) return { error: "You do not have permission to create content for this Brand." };
+    const draft = extractBriefingSocialDrafts(source.body).find((item) => item.rank === parsed.data.rank && item.channel === parsed.data.channel);
+    if (!draft) return { error: "This post lacks a valid source or is no longer available. Reload the briefing." };
+    draftId = await createSocialDraftFromBriefing(source, draft);
+  } catch (error) {
+    return publicError(error);
+  }
+  revalidatePath("/content");
+  revalidatePath(`/content/${draftId}`);
+  redirect(`/content/${draftId}`);
 }
 
 export async function createFacebookUnpublishedTestAction(contentId: string, _state: ContentActionState): Promise<ContentActionState> {

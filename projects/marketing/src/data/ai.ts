@@ -101,3 +101,23 @@ export async function saveGeneratedDailyBriefing(brandId: string, briefing: Gene
   if (error) throw new AiDataError("DATABASE_ERROR");
   return data;
 }
+
+export async function saveCapturedDailyBriefing(brandId: string, briefing: GeneratedDailyBriefing, reservationId: string): Promise<string> {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("create_ai_briefing_capture", {
+    p_brand_id: brandId,
+    p_title: `Research capture — ${briefing.title}`.slice(0, 200),
+    p_body: briefing.body,
+    p_input_tokens: briefing.inputTokens,
+    p_output_tokens: briefing.outputTokens,
+    p_latency_ms: briefing.latencyMs,
+    p_source_urls: briefing.sourceUrls,
+    p_quality_issues: briefing.qualityIssues,
+    p_prompt_version: briefing.promptVersion,
+    p_reservation_id: reservationId,
+  });
+  if (error?.code === "42501") throw new AiDataError("NOT_PERMITTED");
+  if (error?.code === "23514") throw new AiDataError("INVALID_RESULT");
+  if (error) throw new AiDataError("DATABASE_ERROR");
+  return data;
+}

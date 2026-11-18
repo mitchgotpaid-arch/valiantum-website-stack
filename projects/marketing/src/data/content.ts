@@ -1,5 +1,6 @@
 import "server-only";
 import { requireUser } from "@/data/auth";
+import type { BriefingSocialDraft } from "@/lib/content/briefing-social-drafts";
 import type { ContentForReviewInput, ReviewDecisionInput } from "@/lib/content/schema";
 import type { Database, Json } from "@/types/database";
 
@@ -20,7 +21,11 @@ export interface ContentQueueItem {
   requiresHumanApproval: boolean;
   hasProhibitedClaim: boolean;
   mediaPolicySatisfied: boolean;
+  sourceContentId: string | null;
+  sourceUrls: string[];
+  targetChannel: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApprovalRecord {
@@ -32,6 +37,7 @@ export interface ApprovalRecord {
 
 export interface ContentReviewDetail extends ContentQueueItem {
   canReview: boolean;
+  canEdit: boolean;
   approvals: ApprovalRecord[];
 }
 
@@ -42,7 +48,7 @@ export class ContentDataError extends Error {
   }
 }
 
-const contentSelection = "id,brand_id,title,content_type,body,status,verification_status,risk,requires_human_approval,has_prohibited_claim,media_policy_satisfied,created_at,brands(name)" as const;
+const contentSelection = "id,brand_id,title,content_type,body,status,verification_status,risk,requires_human_approval,has_prohibited_claim,media_policy_satisfied,source_content_id,source_urls,target_channel,created_at,updated_at,brands(name)" as const;
 
 function logDatabaseError(operation: string, error: { code?: string; message?: string; hint?: string }) {
   console.error(`[content] ${operation} failed`, { code: error.code, message: error.message, hint: error.hint });
@@ -60,7 +66,11 @@ function toQueueItem(row: {
   requires_human_approval: boolean;
   has_prohibited_claim: boolean;
   media_policy_satisfied: boolean;
+  source_content_id: string | null;
+  source_urls: Json;
+  target_channel: string | null;
   created_at: string;
+  updated_at: string;
   brands: { name: string } | null;
 }): ContentQueueItem {
   return {
@@ -76,7 +86,11 @@ function toQueueItem(row: {
     requiresHumanApproval: row.requires_human_approval,
     hasProhibitedClaim: row.has_prohibited_claim,
     mediaPolicySatisfied: row.media_policy_satisfied,
+    sourceContentId: row.source_content_id,
+    sourceUrls: Array.isArray(row.source_urls) ? row.source_urls.filter((value): value is string => typeof value === "string" && /^https?:\/\//.test(value)) : [],
+    targetChannel: row.target_channel,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -99,19 +113,22 @@ export async function getContentReview(contentId: string): Promise<ContentReview
   }
   if (!data) return null;
 
-  const [approvalsResult, reviewResult] = await Promise.all([
+  const [approvalsResult, reviewResult, editResult] = await Promise.all([
     supabase.from("approvals").select("id,decision,notes,created_at").eq("content_id", contentId).order("created_at", { ascending: false }),
     supabase.rpc("can_review_brand", { target_brand_id: data.brand_id }),
+    supabase.rpc("can_edit_brand", { target_brand_id: data.brand_id }),
   ]);
-  if (approvalsResult.error || reviewResult.error) {
+  if (approvalsResult.error || reviewResult.error || editResult.error) {
     if (approvalsResult.error) logDatabaseError("approval history", approvalsResult.error);
     if (reviewResult.error) logDatabaseError("review permission", reviewResult.error);
+    if (editResult.error) logDatabaseError("edit permission", editResult.error);
     throw new ContentDataError("DATABASE_ERROR");
   }
 
   return {
     ...toQueueItem(data),
     canReview: reviewResult.data,
+    canEdit: editResult.data,
     approvals: approvalsResult.data.map((approval) => ({
       id: approval.id,
       decision: parseDecision(approval.decision),
@@ -148,6 +165,37 @@ export async function recordContentDecision(input: ReviewDecisionInput): Promise
     throw mapDatabaseError(error.code);
   }
   return data;
+}
+
+export async function createSocialDraftFromBriefing(source: ContentReviewDetail, draft: BriefingSocialDraft): Promise<string> {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("create_social_draft_from_briefing", {
+    p_source_content_id: source.id,
+    p_source_updated_at: source.updatedAt,
+    p_opportunity_rank: draft.rank,
+    p_channel: draft.channel,
+    p_title: draft.headline,
+    p_body: draft.body,
+    p_source_urls: draft.sourceUrls,
+  });
+  if (error) {
+    logDatabaseError("create from briefing", error);
+    throw mapDatabaseError(error.code);
+  }
+  return data;
+}
+
+export async function reviseContentForReview(input: { contentId: string; title: string; body: string }): Promise<void> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("revise_content_for_review", {
+    p_content_id: input.contentId,
+    p_title: input.title,
+    p_body: input.body,
+  });
+  if (error) {
+    logDatabaseError("revise for review", error);
+    throw mapDatabaseError(error.code);
+  }
 }
 
 function mapDatabaseError(code?: string) {

@@ -29,6 +29,18 @@ export const reviewDecisionSchema = z.object({
   }
 });
 
+export const reviseContentSchema = z.object({
+  contentId: z.uuid("Invalid content item."),
+  title: z.string().trim().min(1, "Title is required.").max(200, "Title must be 200 characters or fewer."),
+  body: z.string().trim().min(1, "Post copy is required.").max(50_000, "Post copy must be 50,000 characters or fewer."),
+});
+
+export const briefingSocialDraftSchema = z.object({
+  contentId: z.uuid("Invalid briefing."),
+  rank: z.coerce.number().int().min(1).max(5),
+  channel: z.enum(["FACEBOOK", "INSTAGRAM", "X"]),
+});
+
 export const aiDraftRequestSchema = z.object({
   brandId: z.uuid("Select a valid brand."),
   contentType: z.enum(["SOCIAL_POST", "CAPTION", "THREAD"]),
@@ -42,6 +54,7 @@ export const dailyBriefingRequestSchema = z.object({
 
 export type ContentForReviewInput = z.infer<typeof contentForReviewSchema>;
 export type ReviewDecisionInput = z.infer<typeof reviewDecisionSchema>;
+export type ReviseContentInput = z.infer<typeof reviseContentSchema>;
 export type AiDraftRequestInput = z.infer<typeof aiDraftRequestSchema>;
 export type DailyBriefingRequestInput = z.infer<typeof dailyBriefingRequestSchema>;
 
@@ -59,6 +72,14 @@ export function reviewDecisionFromFormData(contentId: string, formData: FormData
     contentId,
     decision: formData.get("decision"),
     notes: formData.get("notes"),
+  });
+}
+
+export function reviseContentFromFormData(contentId: string, formData: FormData) {
+  return reviseContentSchema.safeParse({
+    contentId,
+    title: formData.get("title"),
+    body: formData.get("body"),
   });
 }
 

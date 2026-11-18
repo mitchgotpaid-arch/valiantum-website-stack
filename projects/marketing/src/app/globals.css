@@ -209,6 +209,7 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em;
 .content-card-meta { display: flex; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
 .content-card-status { display: grid; justify-items: end; gap: 7px; flex: 0 0 auto; }
 .status-needs_review { background: #fff2d9; color: #8a5a09; }
+.status-verifying { background: #eaf0fb; color: #315a8f; }
 .status-approved { background: #e4f2e9; color: #1f6b48; }
 .status-rejected { background: #feeceb; color: #9f2d24; }
 .resolved-section { margin-top: 30px; }
@@ -217,6 +218,10 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em;
 .review-card { padding: 22px; }
 .review-card h2 { margin: 4px 0 0; font-size: 18px; }
 .content-preview { min-height: 180px; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfb; color: #28372f; font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+.briefing-copy-preview { white-space: pre-wrap; }
+.briefing-source-list { display: grid; gap: 6px; margin: 12px 0; overflow-wrap: anywhere; font-size: 12px; }
+.briefing-source-list a { color: var(--forest); }
+.briefing-handoff-form { margin-top: 14px; }
 .review-checks { display: grid; }
 .review-check { display: flex; justify-content: space-between; gap: 18px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .review-check:last-child { border-bottom: 0; }

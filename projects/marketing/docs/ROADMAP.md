@@ -1,5 +1,9 @@
 # Roadmap
 
+## Current launch focus (2026-10-06)
+
+The first shipping unit is a researched briefing that can produce separate, editable, source-linked Facebook, Instagram, and manual-X drafts without another AI request. The code is complete locally, but its database migration must be applied and smoke-tested before use. Public Facebook and Instagram publishing remain disabled; the next gate is human-verifiable claims, media readiness, and one-at-a-time approved publication with durable provider status.
+
 ## Phase 1 — Foundation — IN PROGRESS
 
 - COMPLETE: repository memory, Next.js shell, deterministic safety engine baseline.
@@ -12,7 +16,7 @@
 
 ## Phase 2 — AI Content Creation — IN PROGRESS
 
-Brand-aware social draft generation now uses structured outputs, centralized low-cost model configuration, atomic AI usage/cost recording, and mandatory human review. A separate research-director workflow uses live web search and a stronger configurable model to create ranked daily opportunities, platform-native copy, distinct graphic directions, and one complete article/SEO package. An application-wide $15 monthly cap is reserved atomically before any OpenAI request, with briefings limited to eight web-search tool calls and $0.45 of reserved budget. Live generation remains disabled until the operator supplies a server-only OpenAI API key. Routing/evaluations, editing, regeneration, and additional review agents remain.
+Brand-aware social draft generation now uses structured outputs, centralized low-cost model configuration, atomic AI usage/cost recording, and mandatory human review. A separate research-director workflow uses live web search and a stronger configurable model to create ranked daily opportunities, platform-native copy, distinct graphic directions, and one complete article/SEO package. An application-wide $15 monthly cap is reserved atomically before any OpenAI request, with briefings limited to eight web-search tool calls and $0.45 of reserved budget. The server-only OpenAI key is present in the Git-ignored local environment, and the user has exercised live generation. Routing/evaluations, regeneration, and additional review agents remain; audited editing and resubmission are coded but await the development migration.
 
 ## Phase 3 — Research & Verification — IN PROGRESS
 

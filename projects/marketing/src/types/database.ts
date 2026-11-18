@@ -484,7 +484,11 @@ export type Database = {
           media_policy_satisfied: boolean
           requires_human_approval: boolean
           risk: Database["public"]["Enums"]["risk_level"]
+          source_content_id: string | null
+          source_opportunity_rank: number | null
+          source_urls: Json
           status: Database["public"]["Enums"]["content_status"]
+          target_channel: string | null
           title: string
           updated_at: string
           verification_status: Database["public"]["Enums"]["verification_status"]
@@ -500,7 +504,11 @@ export type Database = {
           media_policy_satisfied?: boolean
           requires_human_approval?: boolean
           risk?: Database["public"]["Enums"]["risk_level"]
+          source_content_id?: string | null
+          source_opportunity_rank?: number | null
+          source_urls?: Json
           status?: Database["public"]["Enums"]["content_status"]
+          target_channel?: string | null
           title: string
           updated_at?: string
           verification_status?: Database["public"]["Enums"]["verification_status"]
@@ -516,7 +524,11 @@ export type Database = {
           media_policy_satisfied?: boolean
           requires_human_approval?: boolean
           risk?: Database["public"]["Enums"]["risk_level"]
+          source_content_id?: string | null
+          source_opportunity_rank?: number | null
+          source_urls?: Json
           status?: Database["public"]["Enums"]["content_status"]
+          target_channel?: string | null
           title?: string
           updated_at?: string
           verification_status?: Database["public"]["Enums"]["verification_status"]
@@ -527,6 +539,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_items_source_content_id_fkey"
+            columns: ["source_content_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
             referencedColumns: ["id"]
           },
         ]
@@ -743,6 +762,21 @@ export type Database = {
         }
         Returns: string
       }
+      create_ai_briefing_capture: {
+        Args: {
+          p_body: string
+          p_brand_id: string
+          p_input_tokens: number
+          p_latency_ms: number
+          p_output_tokens: number
+          p_prompt_version: string
+          p_quality_issues: Json
+          p_reservation_id: string
+          p_source_urls: Json
+          p_title: string
+        }
+        Returns: string
+      }
       fail_ai_budget_reservation: {
         Args: { p_reservation_id: string }
         Returns: undefined
@@ -792,6 +826,22 @@ export type Database = {
           p_content_type: string
           p_title: string
         }
+        Returns: string
+      }
+      create_social_draft_from_briefing: {
+        Args: {
+          p_body: string
+          p_channel: string
+          p_opportunity_rank: number
+          p_source_content_id: string
+          p_source_updated_at: string
+          p_source_urls: Json
+          p_title: string
+        }
+        Returns: string
+      }
+      revise_content_for_review: {
+        Args: { p_body: string; p_content_id: string; p_title: string }
         Returns: string
       }
       record_content_decision: {

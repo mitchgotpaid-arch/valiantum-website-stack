@@ -1,1 +1,1 @@
-Imported from mitchgotpaid-arch/Valiantum-Marketing-OS- at ecb64bbd0ffece3af3e7201d3fcf96b2b79c05dd. Marketing now builds and runs within the Valiantum Projects app at /marketing. The original repository is retained as provenance.
+Imported from `mitchgotpaid-arch/Valiantum-Marketing-OS-`, branch `feature/briefing-to-post-handoff`, commit `ee3135ee0f080a3436996558d3bff6c090241554`. This includes the latest local working checkout and its deployed editorial/briefing migrations. Integrated work now lives in this repository.
