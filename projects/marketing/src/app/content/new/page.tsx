@@ -10,8 +10,8 @@ export default async function NewContentPage() {
   await requirePageUser();
   if (!hasSupabaseEnv()) redirect("/content");
   const brands = await listBrands();
-  return <PageFrame title="Submit content for review" description="Create a human-authored or imported draft with fail-closed verification, risk, approval, and media defaults.">
+  return <PageFrame title="Create something worth sharing." description="Your words. Your brand. Start a new draft and give it a final review before the next step.">
     <div className="back-row"><Link href="/content">← Back to approval queue</Link><span className="badge warning">Human review required</span></div>
-    {brands.length ? <section className="card form-card"><ContentForReviewForm brands={brands} /></section> : <div className="card section-card"><div className="empty"><strong>Create a Brand first</strong>Content must belong to a Brand so RLS, truth, sources, and media policy can be enforced.<div style={{ marginTop: 18 }}><Link className="button" href="/brands/new">Create first brand</Link></div></div></div>}
+    {brands.length ? <section className="card form-card"><ContentForReviewForm brands={brands} /></section> : <div className="card section-card"><div className="empty"><strong>Create a Brand first</strong>Add a brand so every draft has the right voice, context, and creative direction.<div style={{ marginTop: 18 }}><Link className="button" href="/brands/new">Create first brand</Link></div></div></div>}
   </PageFrame>;
 }

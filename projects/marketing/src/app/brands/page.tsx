@@ -1,29 +1,8 @@
 import {requirePageUser} from '@/data/page-auth';
-import Link from "next/link";
-import { PageFrame } from "@/components/page-frame";
-import { listBrands } from "@/data/brands";
-import { hasSupabaseEnv } from "@/lib/env";
-
-export default async function BrandsPage() {
-  await requirePageUser();
-  if (!hasSupabaseEnv()) return <PageFrame title="Brands" description="Configure brand identity, product truth, sources, media rules, budgets, and publication authority."><SetupRequired /></PageFrame>;
-  const brands = await listBrands();
-  return (
-    <PageFrame title="Brands" description="Configure brand identity, product truth, sources, media rules, budgets, and publication authority.">
-      <div className="toolbar"><span>{brands.length} {brands.length === 1 ? "brand" : "brands"}</span><Link className="button" href="/brands/new">Add brand</Link></div>
-      {brands.length ? <div className="brand-list">{brands.map((brand) => <Link className="card brand-card" href={`/settings?brand=${brand.id}`} key={brand.id}><div className="brand-card-main">{brand.logoUrl ? <div aria-label={`${brand.name} logo`} className="brand-logo-thumb" role="img" style={{ backgroundImage: `url(${brand.logoUrl})` }} /> : <div aria-hidden="true" className="brand-logo-thumb brand-logo-fallback">{brandInitials(brand.name)}</div>}<div><span className="eyebrow">{brand.industry ?? "Uncategorized"}</span><h2>{brand.name}</h2><p>{brand.description || "No description yet."}</p></div></div><div className="brand-status"><span className="badge warning">{autonomyLabel(brand.autonomy)}</span><span>Publishing {brand.publishingEnabled ? "on" : "off"}</span></div></Link>)}</div> : <div className="card section-card"><div className="empty"><strong>No brands yet</strong>Create a brand to establish its identity, guidance, and content workspace.<div style={{ marginTop: 18 }}><Link className="button" href="/brands/new">Create first brand</Link></div></div></div>}
-    </PageFrame>
-  );
-}
-
-function SetupRequired() {
-  return <div className="card section-card"><div className="empty"><strong>Connect Supabase first</strong>Add the project URL and publishable key to <code>.env.local</code>, then apply the initial migrations. Brand data is never mocked as live data.</div></div>;
-}
-
-function autonomyLabel(autonomy: string) {
-  return autonomy === "LEVEL_1_MANUAL" ? "Manual" : autonomy.replaceAll("_", " ").toLowerCase();
-}
-
-function brandInitials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-}
+import Link from 'next/link';
+import {PageFrame} from '@/components/page-frame';
+import {BrandMark,brandTone} from '@/components/marketing/ui';
+import {Icon} from '@/components/marketing/icon';
+import {listBrands} from '@/data/brands';
+import {hasSupabaseEnv} from '@/lib/env';
+export default async function BrandsPage(){await requirePageUser();const brands=hasSupabaseEnv()?await listBrands():[];return <PageFrame title="The brand collective" description="Different voices, shared ambition. Give every Valiantum brand a place to grow."><div className="toolbar"><span>{brands.length} {brands.length===1?'brand':'brands'} in your studio</span><Link className="button" href="/brands/new"><Icon name="plus" size={16}/> Add brand</Link></div><div className="brand-collection">{brands.map(brand=><Link href={`/settings?brand=${brand.id}`} className={`brand-collection-card tone-${brandTone(brand.name)}`} key={brand.id}><div className="brand-collection-cover"><span className="brand-cover-orbit"/><BrandMark brand={brand}/><span className="brand-cover-label">A VALIANTUM BRAND</span></div><div className="brand-collection-copy"><div className="eyebrow">{brand.industry||'INDEPENDENT SPIRIT'}</div><h2>{brand.name}</h2><p>{brand.description||'Every great brand starts with an idea. Shape its voice, story, and creative direction.'}</p><div className="brand-collection-bottom"><span className="studio-status"><span/>{brand.publishingEnabled?'Publishing enabled':'Review first'}</span><Icon name="arrow"/></div></div></Link>)}<Link className="brand-collection-add" href="/brands/new"><span className="add-brand-icon"><Icon name="plus" size={26}/></span><h2>Your next chapter.</h2><p>A new idea deserves a home.</p><span className="text-link">Add a brand <Icon name="arrow" size={16}/></span></Link></div></PageFrame>}

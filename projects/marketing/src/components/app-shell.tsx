@@ -1,43 +1,6 @@
-import Link from "next/link";
-import { hasSupabaseEnv } from "@/lib/env";
-
-const navigation = [
-  ["Dashboard", "/"],
-  ["Brands", "/brands"],
-  ["Content", "/content"],
-  ["Calendar", "/calendar"],
-  ["Campaigns", "/campaigns"],
-  ["Project briefs", "/projects"],
-  ["Agent", "/agent"],
-  ["Analytics", "/analytics"],
-  ["Settings", "/settings"],
-] as const;
-
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const databaseConfigured = hasSupabaseEnv();
-
-  return (
-    <div className="app-grid">
-      <aside className="sidebar">
-        <div className="wordmark">Valiantum <small>Marketing OS</small></div>
-        <a className="projects-return" href="/">← Back to Projects</a>
-        <nav className="nav" aria-label="Primary navigation">
-          {navigation.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
-        </nav>
-        <div className="safety-note">
-          <strong>Automatic publishing is off</strong>
-          Drafting and review can continue. No content can be auto-published.
-        </div>
-      </aside>
-      <main className="main">
-        <header className="topbar">
-          <span className="eyebrow">Operations workspace</span>
-          <span className={`badge${databaseConfigured ? "" : " warning"}`}>
-            {databaseConfigured ? "Database connected" : "Setup mode"}
-          </span>
-        </header>
-        {children}
-      </main>
-    </div>
-  );
+import Link from 'next/link';
+import {MarketingNavigation} from './marketing/navigation';
+import {Icon} from './marketing/icon';
+export function AppShell({children}:{children:React.ReactNode}){
+ return <div className="app-grid"><a className="skip-link" href="#marketing-main">Skip to content</a><aside className="sidebar"><Link href="/" className="studio-wordmark"><span className="valiantum-symbol">V<span>↗</span></span><span>Valiantum<small>MARKETING STUDIO</small></span></Link><a className="projects-return" href="/"><span>←</span> Projects workspace <Icon name="external" size={13}/></a><MarketingNavigation/><div className="sidebar-bottom"><div className="studio-note"><Icon name="spark"/><strong>Your brands. One studio.</strong><p>Good ideas, thoughtfully brought to life.</p></div><div className="owner-profile"><span className="owner-avatar">V</span><span>Valiantum workspace<small>Private · Owner access</small></span><Icon name="check" size={16}/></div></div></aside><main className="main" id="marketing-main"><header className="topbar"><div className="topbar-breadcrumb">Valiantum <span>/</span> <strong>Marketing</strong></div><div className="topbar-actions"><Link className="topbar-brands" href="/brands"><Icon name="brands" size={16}/> All brands</Link><Link className="button button-small" href="/content/new"><Icon name="plus" size={16}/> Create content</Link><span className="topbar-avatar" aria-label="Private workspace">V</span></div></header>{children}<footer className="studio-footer"><span>VALIANTUM <b>Marketing studio</b></span><span>Made for your next big idea.</span></footer></main></div>;
 }

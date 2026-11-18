@@ -1,14 +1,4 @@
-import { AppShell } from "@/components/app-shell";
-
-export function PageFrame({ title, description, children }: { title: string; description: string; children?: React.ReactNode }) {
-  return (
-    <AppShell>
-      <div className="content">
-        <div className="title-row">
-          <div><div className="eyebrow">Workspace</div><h1>{title}</h1><p className="subtitle">{description}</p></div>
-        </div>
-        {children ?? <div className="card section-card"><div className="empty"><strong>Foundation ready</strong>This workspace will be activated in the current milestone.</div></div>}
-      </div>
-    </AppShell>
-  );
-}
+import Link from 'next/link';
+import {AppShell} from '@/components/app-shell';
+import {Icon} from './marketing/icon';
+export function PageFrame({title,description,children}:{title:string;description:string;children?:React.ReactNode}){return <AppShell><div className="content"><div className="title-row"><div><div className="eyebrow">VALIANTUM / MARKETING STUDIO</div><h1>{title}</h1><p className="subtitle">{description}</p></div></div>{children??<div className="studio-empty"><span className="empty-art"><Icon name="spark" size={30}/></span><h2>A little more is on the way.</h2><p>This part of the studio isn&apos;t available yet. Your brands, drafts, and review workspace are ready to explore.</p><Link className="button button-secondary" href="/content">Explore your content <Icon name="arrow" size={16}/></Link></div>}</div></AppShell>}

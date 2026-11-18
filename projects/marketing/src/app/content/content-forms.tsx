@@ -20,7 +20,7 @@ export function ContentForReviewForm({ brands }: { brands: BrandSummary[] }) {
       </Field>
     </div>
     <Field label="Title" name="title" error={state.fieldErrors?.title?.[0]}><input id="title" name="title" maxLength={200} required /></Field>
-    <Field label="Content preview" name="body" hint="This draft enters review with verification unverified, medium risk, human approval required, and media checks incomplete." error={state.fieldErrors?.body?.[0]}><textarea id="body" name="body" rows={14} maxLength={50_000} /></Field>
+    <Field label="Content preview" name="body" hint="Write or paste your content here. It will be saved for review, not published." error={state.fieldErrors?.body?.[0]}><textarea id="body" name="body" rows={14} maxLength={50_000} /></Field>
     {state.error ? <p className="error" role="alert">{state.error}</p> : null}
     <div className="form-actions"><button className="button" disabled={pending} type="submit">{pending ? "Submitting…" : "Submit for review"}</button></div>
   </form>;
