@@ -165,7 +165,7 @@ async function createApp(env = process.env, integrations = {}) {
     res.set('Referrer-Policy','no-referrer');
     if(!ownerAuth.enabled||typeof req.query.code!=='string'||req.query.code.length>4096)return res.redirect('/login?auth=link-failed');
     try{
-      const result=await ownerFor(req,res).exchangeCode(req.query.code);
+      const result=await ownerFor(req,res).exchangeCode(req.query.code,typeof req.query.sb_flow_id==='string'&&/^[A-Za-z0-9_-]{8,64}$/.test(req.query.sb_flow_id)?req.query.sb_flow_id:undefined);
       if(!result)return res.redirect('/login?auth=link-failed');
       const ticket=randomBytes(32).toString('hex');passwordTickets.set(ticket,{ownerId:result.user.id,tokenHash:result.tokenHash,expires:Date.now()+10*60000});
       res.append('Set-Cookie',`valiantum_password_setup=${ticket}; HttpOnly; SameSite=Strict; Path=/api/account/password; Max-Age=600${production?'; Secure':''}`);

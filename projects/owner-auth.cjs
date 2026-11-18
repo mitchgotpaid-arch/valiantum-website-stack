@@ -7,13 +7,26 @@ function createOwnerAuth(env=process.env,clientFactory=createServerClient){
   if(!env.PROJECTS_EMAIL||!uuid.test(env.PROJECTS_SUPABASE_OWNER_ID)||!env.NEXT_PUBLIC_SUPABASE_URL||!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)throw Error('Configure the existing Supabase owner UUID, URL and publishable key.');
   const url=new URL(env.NEXT_PUBLIC_SUPABASE_URL);
   if(env.NODE_ENV==='production'&&url.protocol!=='https:')throw Error('Supabase must use HTTPS in production.');
+  // This single-owner app is the PKCE client. Keep the latest email flow's
+  // verifier on the server too, so opening email in another browser still works.
+  // Never retain session cookies here. A new email invalidates the older flow.
+  let emailFlow=null;
+  const isVerifier=name=>/-code-verifier(?:\.\d+)?$/.test(name);
   return {enabled:true,forRequest(req,res){
+    if(emailFlow?.expires<=Date.now())emailFlow=null;
+    const callbackFlow=req.path==='/auth/callback'&&emailFlow?.expires>Date.now()?emailFlow:null;
+    const verifierUpdates=new Map();
     const client=clientFactory(url.href,env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,{cookies:{
-      getAll:()=>parseCookieHeader(req.headers.cookie||''),
+      getAll:()=>{
+        const stored=new Map(parseCookieHeader(req.headers.cookie||'').map(item=>[item.name,item.value]));
+        if(callbackFlow)for(const item of callbackFlow.cookies)stored.set(item.name,item.value);
+        return [...stored].map(([name,value])=>({name,value}));
+      },
       setAll(updates){
         const cookies=new Map(parseCookieHeader(req.headers.cookie||'').map(item=>[item.name,item.value]));
         for(const {name,value,options} of updates){
           cookies.set(name,value);
+          if(isVerifier(name)&&value)verifierUpdates.set(name,value);
           res.append('Set-Cookie',serializeCookieHeader(name,value,{...options,httpOnly:true,secure:env.NODE_ENV==='production',sameSite:'lax',path:'/'}));
         }
         req.headers.cookie=[...cookies].map(([name,value])=>name+'='+encodeURIComponent(value||'')).join('; ');
@@ -35,6 +48,7 @@ function createOwnerAuth(env=process.env,clientFactory=createServerClient){
       async sendCode(email){
         // Existing account only. Public signup remains disabled.
         const {error}=await client.auth.signInWithOtp({email:env.PROJECTS_SUPABASE_OWNER_EMAIL||env.PROJECTS_EMAIL,options:{shouldCreateUser:false,emailRedirectTo:new URL('/auth/callback',env.APP_ORIGIN).href}});
+        if(!error)emailFlow={expires:Date.now()+10*60000,cookies:[...verifierUpdates].map(([name,value])=>({name,value}))};
         return !error;
       },
       async verifyCode(email,token){
@@ -50,9 +64,10 @@ function createOwnerAuth(env=process.env,clientFactory=createServerClient){
         if(error||!isOwner(data.user)||!data.session){if(data.user)await client.auth.signOut({scope:'local'});return null;}
         return {user:data.user,tokenHash:createHash('sha256').update(data.session.access_token).digest('hex')};
       },
-      async exchangeCode(code){
-        const {data,error}=await client.auth.exchangeCodeForSession(code);
+      async exchangeCode(code,flowId){
+        const {data,error}=await client.auth.exchangeCodeForSession(code,flowId?{flowId}:undefined);
         if(error||!isOwner(data.user)||!data.session){if(data.user)await client.auth.signOut({scope:'local'});return null;}
+        if(callbackFlow&&emailFlow===callbackFlow)emailFlow=null;
         return {user:data.user,tokenHash:createHash('sha256').update(data.session.access_token).digest('hex')};
       },
       async tokenHash(){const {data}=await client.auth.getSession();return data.session?createHash('sha256').update(data.session.access_token).digest('hex'):null;},

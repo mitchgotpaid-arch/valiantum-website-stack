@@ -41,4 +41,4 @@ document.querySelector('#verify-code').onclick=async()=>{
   catch(error){codeMessage.textContent=error.message;}finally{button.disabled=false;}
 };
 
-if(new URLSearchParams(location.search).get('auth')==='link-failed'){document.querySelector('#error').textContent='That sign-in link could not be completed in this browser. Request a fresh link, then copy the email’s Sign in link and paste it into the box below.';}
+if(new URLSearchParams(location.search).get('auth')==='link-failed'){document.querySelector('#code-entry').hidden=false;document.querySelector('#error').textContent='That sign-in link could not be completed in this browser. Request a fresh link, then copy the email’s Sign in link and paste it into the box below.';}

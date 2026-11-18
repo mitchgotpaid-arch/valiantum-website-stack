@@ -56,3 +56,27 @@ test('single account configuration fails closed without an owner identity or tru
  assert.throws(()=>createOwnerAuth({PROJECTS_SUPABASE_OWNER_ID:'not-a-uuid'}),/Configure/);
  assert.throws(()=>createOwnerAuth({NODE_ENV:'production',PROJECTS_EMAIL:email,PROJECTS_SUPABASE_OWNER_ID:ownerId,NEXT_PUBLIC_SUPABASE_URL:'http://example.test',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'public'}),/HTTPS/);
 });
+
+test('the real SDK exchanges an email PKCE code in another browser using only the server verifier',async()=>{
+ const {createServerClient}=require('@supabase/ssr');const {createHash}=require('node:crypto');
+ const env={NODE_ENV:'production',APP_ORIGIN:origin,PROJECTS_EMAIL:email,PROJECTS_SUPABASE_OWNER_ID:ownerId,NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'public-test-key'};
+ let challenge,exchanges=0;
+ const jwt=['eyJhbGciOiJIUzI1NiJ9',Buffer.from(JSON.stringify({sub:ownerId,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url'),'signature'].join('.');
+ const mockFetch=async(url,options)=>{
+  const body=JSON.parse(options.body);
+  if(String(url).includes('/otp')){assert.equal(body.create_user,false);challenge=body.code_challenge;assert.equal(body.code_challenge_method,'s256');return new Response('{}',{status:200,headers:{'content-type':'application/json'}});}
+  assert.match(String(url),/grant_type=pkce/);assert.equal(body.auth_code,'email-code');
+  assert.equal(createHash('sha256').update(body.code_verifier).digest('base64url'),challenge);exchanges++;
+  return new Response(JSON.stringify({access_token:jwt,refresh_token:'synthetic-refresh',expires_in:3600,token_type:'bearer',user:{id:ownerId,email}}),{headers:{'content-type':'application/json'}});
+ };
+ const auth=createOwnerAuth(env,(url,key,options)=>createServerClient(url,key,{...options,global:{fetch:mockFetch}}));
+ const sent=[];const request={path:'/api/login-code',headers:{}};
+ assert.equal(await auth.forRequest(request,{append:(name,value)=>sent.push(value)}).sendCode(email),true);
+ assert.ok(sent.some(value=>value.includes('-code-verifier=')));
+ const received=[];const anotherBrowser={path:'/auth/callback',headers:{}};
+ const result=await auth.forRequest(anotherBrowser,{append:(name,value)=>received.push(value)}).exchangeCode('email-code');
+ assert.equal(result.user.id,ownerId);assert.equal(exchanges,1);
+ assert.ok(received.some(value=>value.includes('auth-token=')&&value.includes('HttpOnly')&&value.includes('Secure')));
+ const replay=await auth.forRequest({path:'/auth/callback',headers:{}},{append:()=>{}}).exchangeCode('email-code');
+ assert.equal(replay,null);assert.equal(exchanges,1);
+});
