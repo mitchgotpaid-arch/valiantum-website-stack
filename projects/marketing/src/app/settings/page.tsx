@@ -34,6 +34,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
     {activeBrand ? <>
       <div className="settings-heading-row"><div><span className="eyebrow">Brand workspace</span><h2>{activeBrand.name}</h2><p>Fill in only what is useful. Blank optional fields are ignored by the Marketing Agent.</p></div><Link className="button button-secondary" href="/brands/new">Add another brand</Link></div>
+      <section className="card section-card settings-section"><div className="section-heading"><div><h2>Teach this brand</h2><p>Build its verified facts, source library, voice examples, and drafting boundaries.</p></div><Link className="button" href={`/brands/${activeBrand.id}/knowledge`}>Open Brand Knowledge →</Link></div></section>
       <section className="card form-card settings-section">
         <div className="section-heading"><div><h2>Logo and visual identity</h2><p>Store the approved logo the Agent can use when creating graphics.</p></div></div>
         <BrandLogoForm brand={activeBrand} />

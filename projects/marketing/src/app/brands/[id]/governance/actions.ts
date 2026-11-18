@@ -21,7 +21,7 @@ export async function createFactAction(brandId: string, _state: GovernanceAction
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
   try {
     await createBrandFact(brandId, parsed.data);
-    revalidatePath(`/brands/${brandId}/governance`);
+    revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent");
     return { success: "Fact added." };
   } catch (error) { return publicError(error); }
 }
@@ -29,7 +29,7 @@ export async function createFactAction(brandId: string, _state: GovernanceAction
 export async function removeFactAction(brandId: string, factId: string): Promise<void> {
   if (!idSchema.safeParse(brandId).success || !idSchema.safeParse(factId).success) return;
   await deleteBrandFact(brandId, factId);
-  revalidatePath(`/brands/${brandId}/governance`);
+  revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent");
 }
 
 export async function createRuleAction(brandId: string, _state: GovernanceActionState, formData: FormData): Promise<GovernanceActionState> {
@@ -38,7 +38,7 @@ export async function createRuleAction(brandId: string, _state: GovernanceAction
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
   try {
     await createBrandRule(brandId, parsed.data);
-    revalidatePath(`/brands/${brandId}/governance`);
+    revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent");
     return { success: "Rule added." };
   } catch (error) { return publicError(error); }
 }
@@ -46,14 +46,14 @@ export async function createRuleAction(brandId: string, _state: GovernanceAction
 export async function removeRuleAction(brandId: string, ruleId: string): Promise<void> {
   if (!idSchema.safeParse(brandId).success || !idSchema.safeParse(ruleId).success) return;
   await deleteBrandRule(brandId, ruleId);
-  revalidatePath(`/brands/${brandId}/governance`);
+  revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent");
 }
 
 export async function createSourceAction(brandId: string, _state: GovernanceActionState, formData: FormData): Promise<GovernanceActionState> {
   if (!idSchema.safeParse(brandId).success) return { error: "Invalid brand." };
   const parsed = brandSourceInputFromFormData(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
-  try { await createBrandSource(brandId, parsed.data); revalidatePath(`/brands/${brandId}/governance`); return { success: "Source added." }; }
+  try { await createBrandSource(brandId, parsed.data); revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent"); return { success: "Source added." }; }
   catch (error) {
     if (error instanceof BrandDataError && error.code === "DUPLICATE_KEY") return { fieldErrors: { name: ["That source already exists for this brand."] } };
     return publicError(error);
@@ -62,13 +62,13 @@ export async function createSourceAction(brandId: string, _state: GovernanceActi
 
 export async function removeSourceAction(brandId: string, sourceId: string): Promise<void> {
   if (!idSchema.safeParse(brandId).success || !idSchema.safeParse(sourceId).success) return;
-  await deleteBrandSource(brandId, sourceId); revalidatePath(`/brands/${brandId}/governance`);
+  await deleteBrandSource(brandId, sourceId); revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent");
 }
 
 export async function saveMediaPolicyAction(brandId: string, _state: GovernanceActionState, formData: FormData): Promise<GovernanceActionState> {
   if (!idSchema.safeParse(brandId).success) return { error: "Invalid brand." };
   const parsed = mediaPolicyInputFromFormData(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
-  try { await saveMediaPolicy(brandId, parsed.data); revalidatePath(`/brands/${brandId}/governance`); return { success: "Media policy saved." }; }
+  try { await saveMediaPolicy(brandId, parsed.data); revalidatePath(`/brands/${brandId}/governance`); revalidatePath(`/brands/${brandId}/knowledge`); revalidatePath("/knowledge"); revalidatePath("/agent"); return { success: "Media policy saved." }; }
   catch (error) { return publicError(error); }
 }

@@ -1,6 +1,7 @@
 import type { BrandSummary } from "@/data/brands";
 
 export interface BrandAgentContext {
+  knowledge?: import("./knowledge").BrandKnowledge;
   name: string;
   website?: string;
   organizationType?: string;

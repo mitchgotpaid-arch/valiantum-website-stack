@@ -72,7 +72,7 @@ export async function saveGeneratedDraft(input: AiDraftRequestInput, draft: Gene
     p_estimated_cost_micros: draft.estimatedCostMicros,
     p_latency_ms: draft.latencyMs,
     p_requires_research: draft.requiresResearch,
-    p_research_notes: draft.researchNotes,
+    p_research_notes: draft.knowledgeRecord ? [...draft.researchNotes,"VALIANTUM_KNOWLEDGE_V1:"+JSON.stringify(draft.knowledgeRecord)] : draft.researchNotes,
     p_reservation_id: reservationId,
   });
   if (error?.code === "42501") throw new AiDataError("NOT_PERMITTED");

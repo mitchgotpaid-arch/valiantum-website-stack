@@ -1,0 +1,10 @@
+import Link from 'next/link';
+import {hasSupabaseEnv} from '@/lib/env';
+import {requirePageUser} from '@/data/page-auth';
+import {listBrands} from '@/data/brands';
+import {getBrandGovernance} from '@/data/brand-governance';
+import {buildBrandKnowledge} from '@/lib/brands/knowledge';
+import {PageFrame} from '@/components/page-frame';
+import {BrandMark} from '@/components/marketing/ui';
+import {Icon} from '@/components/marketing/icon';
+export default async function KnowledgePage(){await requirePageUser();const brands=hasSupabaseEnv()?await listBrands():[];const training=await Promise.all(brands.map(async brand=>({brand,training:buildBrandKnowledge(brand,await getBrandGovernance(brand.id))})));return <PageFrame title="A brand brain worth trusting." description="A separate, living knowledge library for every Valiantum brand. Give your agents a foundation you can inspect and improve."><section className="knowledge-explainer card section-card"><Icon name="spark" size={26}/><div><h2>Teach it what is true, and what sounds like you.</h2><p>Approve sources, review product facts, and curate voice examples. New drafts retrieve that brand&apos;s current knowledge and record the evidence they used. Setup checks do not certify the quality of AI output.</p></div></section><div className="knowledge-brand-grid">{training.map(({brand,training})=><Link className="card knowledge-brand" href={`/brands/${brand.id}/knowledge`} key={brand.id}><BrandMark brand={brand}/><h2>{brand.name}</h2><span className={`studio-status ${training.ready?'status-approved':'status-needs_review'}`}><span/>{training.ready?'Foundation ready':'Needs teaching'}</span><p>{training.checks.filter(c=>c.passed).length} / {training.checks.length} essentials · {training.eligibleCount} eligible facts</p><span className="text-link">Teach this brand <Icon name="arrow" size={16}/></span></Link>)}</div>{!brands.length&&<div className="studio-empty"><h2>Give your first brand a home.</h2><p>Add a brand, then teach its voice and verified facts here.</p><Link href="/brands/new" className="button">Add brand</Link></div>}</PageFrame>}

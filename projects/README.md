@@ -84,3 +84,7 @@ Marketing OS is integrated at `/marketing`. See [MARKETING-INTEGRATION.md](MARKE
 Marketing now includes a shared studio overview with live brand/content counts, brand identity cards, a review inbox, and a searchable content library with brand and status filters. The calendar supports month navigation, brand filtering and daily activity; it shows content creation dates in Eastern time. It does not represent drafts as scheduled publications. Public scheduling and posting remain disabled pending their provider and execution setup. Existing brand settings, AI drafting, review decisions and Projects briefs use the same authenticated data and actions.
 
 The interface was checked at desktop, 390px and 320px widths with synthetic preview content. That temporary preview route is removed from the deployed source. Text previews are editorial excerpts, not rendered previews of the final social media asset.
+
+### Brand Knowledge
+
+Open `/marketing/knowledge` to teach each brand's voice and examples, approve factual sources, review facts and maintain editorial rules. Generation checks this foundation before reserving API budget, retrieves only current verified facts for the selected brand and records the context used. Routine drafts receive a separate AI review pass, with evidence and issues visible on the draft page. Human approval remains required. See [Brand Knowledge setup and limits](BRAND-KNOWLEDGE.md).

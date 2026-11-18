@@ -9,6 +9,9 @@ export interface BrandFact {
   value: string;
   verificationStatus: "VERIFIED" | "SUPPORTED" | "UNVERIFIED" | "CONFLICTING" | "INCORRECT";
   sourceUrl: string | null;
+  updatedAt?: string;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 export interface BrandRule {
@@ -34,10 +37,10 @@ function parseBrandRuleType(value: string): BrandRule["ruleType"] {
   throw new BrandDataError("DATABASE_ERROR");
 }
 
-export async function getBrandGovernance(brandId: string): Promise<{ facts: BrandFact[]; rules: BrandRule[]; sources: BrandSource[]; mediaPolicy: MediaPolicy }> {
+export async function getBrandGovernance(brandId: string): Promise<{ brandId:string; facts: BrandFact[]; rules: BrandRule[]; sources: BrandSource[]; mediaPolicy: MediaPolicy }> {
   const { supabase } = await requireUser();
   const [factsResult, rulesResult, sourcesResult, mediaResult] = await Promise.all([
-    supabase.from("brand_facts").select("id,fact_key,value,verification_status,source_url").eq("brand_id", brandId).order("fact_key"),
+    supabase.from("brand_facts").select("id,fact_key,value,verification_status,source_url,updated_at,valid_from,valid_until").eq("brand_id", brandId).order("fact_key"),
     supabase.from("brand_rules").select("id,rule_type,rule_text,is_active").eq("brand_id", brandId).order("created_at"),
     supabase.from("brand_sources").select("id,name,base_url,source_tier,is_approved").eq("brand_id", brandId).order("source_tier").order("name"),
     supabase.from("brand_media_policies").select("ai_illustrations_allowed,ai_backgrounds_allowed,ai_real_person_likenesses_allowed,real_person_photos_require_approval,text_graphics_allowed,statistical_graphics_allowed,policy_notes").eq("brand_id", brandId).maybeSingle(),
@@ -45,12 +48,14 @@ export async function getBrandGovernance(brandId: string): Promise<{ facts: Bran
   if (factsResult.error || rulesResult.error || sourcesResult.error || mediaResult.error) throw new BrandDataError("DATABASE_ERROR");
   const media = mediaResult.data;
   return {
+    brandId,
     facts: factsResult.data.map((fact) => ({
       id: fact.id,
       factKey: fact.fact_key,
       value: typeof fact.value === "object" && fact.value !== null && !Array.isArray(fact.value) && typeof fact.value.value === "string" ? fact.value.value : JSON.stringify(fact.value),
       verificationStatus: fact.verification_status,
       sourceUrl: fact.source_url,
+      updatedAt: fact.updated_at, validFrom: fact.valid_from, validUntil: fact.valid_until,
     })),
     rules: rulesResult.data.map((rule) => ({ id: rule.id, ruleType: parseBrandRuleType(rule.rule_type), ruleText: rule.rule_text, isActive: rule.is_active })),
     sources: sourcesResult.data.map((source) => ({ id: source.id, name: source.name, baseUrl: source.base_url, sourceTier: source.source_tier, isApproved: source.is_approved })),

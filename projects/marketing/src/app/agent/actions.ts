@@ -8,7 +8,8 @@ import { BrandDataError, getBrand } from "@/data/brands";
 import { BRAND_DRAFT_RESERVATION_MICROS, generateBrandDraft } from "@/lib/ai/draft-generator";
 import { DAILY_BRIEFING_RESERVATION_MICROS, generateDailyBriefing } from "@/lib/ai/daily-briefing";
 import { getAiEnvironment } from "@/lib/ai/config";
-import { buildBrandAgentContext } from "@/lib/brands/agent-context";
+import {buildBrandKnowledge} from "@/lib/brands/knowledge";
+import {getBrandGovernance} from "@/data/brand-governance";
 import { aiDraftRequestFromFormData, dailyBriefingRequestFromFormData } from "@/lib/content/schema";
 
 export interface AgentDraftActionState {
@@ -27,11 +28,13 @@ export async function generateDraftAction(_state: AgentDraftActionState, formDat
     if (!await canGenerateForBrand(parsed.data.brandId)) return { error: "You do not have permission to generate content for this Brand." };
     const brand = await getBrand(parsed.data.brandId);
     if (!brand) return { error: "The selected Brand was not found." };
+    const training=buildBrandKnowledge(brand,await getBrandGovernance(brand.id),parsed.data.brief);
+    if(!training.ready)return {error:"Complete this brand’s Knowledge setup before generating: "+training.checks.filter(check=>!check.passed).map(check=>check.label).join(", ")+". No API request was made."};
     reservationId = await reserveAiBudget(parsed.data.brandId, environment.OPENAI_DRAFT_MODEL, "BRAND_DRAFT_GENERATION", BRAND_DRAFT_RESERVATION_MICROS);
     const draft = await generateBrandDraft({
       contentType: parsed.data.contentType,
       brief: parsed.data.brief,
-      brand: buildBrandAgentContext(brand),
+      brand: training.context,
     }, environment);
     contentId = await saveGeneratedDraft(parsed.data, draft, reservationId);
     reservationId = undefined;
@@ -61,13 +64,15 @@ export async function generateDailyBriefingAction(_state: AgentDraftActionState,
     if (!await canGenerateForBrand(parsed.data.brandId)) return { error: "You do not have permission to generate a briefing for this Brand." };
     const brand = await getBrand(parsed.data.brandId);
     if (!brand) return { error: "The selected Brand was not found." };
+    const training=buildBrandKnowledge(brand,await getBrandGovernance(brand.id),parsed.data.operatorFocus);
+    if(!training.ready)return {error:"Complete this brand’s Knowledge setup before generating: "+training.checks.filter(check=>!check.passed).map(check=>check.label).join(", ")+". No API request was made."};
     reservationId = await reserveAiBudget(parsed.data.brandId, environment.OPENAI_BRIEFING_MODEL, "DAILY_BRIEFING_GENERATION", DAILY_BRIEFING_RESERVATION_MICROS);
     const timezone = "America/New_York";
     const briefing = await generateDailyBriefing({
       date: new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()),
       timezone,
       operatorFocus: parsed.data.operatorFocus,
-      brand: buildBrandAgentContext(brand),
+      brand: training.context,
     }, environment);
     contentId = briefing.qualityIssues.length
       ? await saveCapturedDailyBriefing(parsed.data.brandId, briefing, reservationId)

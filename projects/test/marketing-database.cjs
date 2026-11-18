@@ -37,7 +37,21 @@ await assert.rejects(db.query('select * from private.provider_credentials'),/per
 await db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['brand-assets',brand+'/logo']);
 await actor(other);assert.equal((await db.query('select * from public.brands')).rows.length,0);assert.equal((await db.query('select * from public.content_items')).rows.length,0);assert.equal((await db.query('select * from storage.objects')).rows.length,0);
 await assert.rejects(db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['brand-assets',brand+'/logo']),/row-level security/);
+await actor(owner);
+const knowledgeFact=(await db.query("insert into public.brand_facts(brand_id,fact_key,value,verification_status,source_url,valid_until) values($1,'product.feature',$2,'VERIFIED','https://brand.example/product',now()+interval '30 days') returning id,updated_at",[brand,{value:'Organizes recipes.'}])).rows[0];
+const knowledgeSource=(await db.query("insert into public.brand_sources(brand_id,name,base_url,source_tier,is_approved) values($1,'Official product','https://brand.example',1,true) returning id",[brand])).rows[0];
+const knowledgeRule=(await db.query("insert into public.brand_rules(brand_id,rule_type,rule_text,is_active) values($1,'NEVER','Never invent pricing.',true) returning id",[brand])).rows[0];
+assert.equal((await db.query("update public.brand_facts set value=$1 where id=$2 and brand_id=$3 and updated_at=$4 returning id",[{value:'Updated reviewed fact.'},knowledgeFact.id,brand,knowledgeFact.updated_at])).rows.length,1);
+assert.equal((await db.query("update public.brand_facts set value=$1 where id=$2 and brand_id=$3 and updated_at='2001-01-01' returning id",[{value:'Stale overwrite'},knowledgeFact.id,brand])).rows.length,0);
+await db.query('update public.brand_sources set is_approved=false where id=$1',[knowledgeSource.id]);
+await db.query('update public.brand_rules set is_active=false where id=$1',[knowledgeRule.id]);
+await db.query("update public.brands set agent_profile=$1 where id=$2",[{mission:'Preserved context',approvedExamples:'A reviewed style example.'},brand]);
+await actor(other);
+for(const table of ['brand_facts','brand_sources','brand_rules'])assert.equal((await db.query('select * from public.'+table)).rows.length,0);
+assert.equal((await db.query("update public.brand_facts set verification_status='VERIFIED' where id=$1 returning id",[knowledgeFact.id])).rows.length,0);
+await actor(viewer);assert.equal((await db.query("update public.brand_facts set verification_status='VERIFIED' where id=$1 returning id",[knowledgeFact.id])).rows.length,0);
+await actor(owner);assert.ok((await db.query("select action from public.audit_logs where action='brand_facts.update'")).rows.length);
 await actor('','anon');await assert.rejects(send(),/permission denied/);
-for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
+for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs','brand_facts','brand_sources','brand_rules'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
 
 await db.close();console.log('PASS: complete migration chain, role/tenant boundaries, private credentials/assets, direct-write denial, idempotency, review defaults and live progress.');})().catch(e=>{console.error(e);process.exitCode=1;});
