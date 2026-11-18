@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./projects-theme.css";
 
 // Authentication and configuration are evaluated at runtime, including after a hosting restart.
 export const dynamic = "force-dynamic";
