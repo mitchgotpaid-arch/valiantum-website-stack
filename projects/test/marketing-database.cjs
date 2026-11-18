@@ -1,0 +1,17 @@
+const {PGlite}=require('@electric-sql/pglite');const fs=require('node:fs');const assert=require('node:assert/strict');
+(async()=>{const db=new PGlite();const dir=require('node:path').join(__dirname,'../marketing/supabase/migrations/');
+await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth,public to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;`);
+for(const name of ['20260921180000_initial_foundation.sql','20260921183000_brand_audit_triggers.sql','20260924223000_approval_queue_foundation.sql','20260924224000_serialize_review_decisions.sql','20261117220000_project_card_bridge.sql'])await db.exec(fs.readFileSync(dir+name,'utf8'));
+const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',viewer='33333333-3333-4333-8333-333333333333',brand='44444444-4444-4444-8444-444444444444',project='55555555-5555-4555-8555-555555555555',card='66666666-6666-4666-8666-666666666666';
+await db.exec(`insert into auth.users values('${owner}'),('${other}'),('${viewer}');select set_config('request.jwt.claim.sub','${owner}',false);insert into public.brands(id,owner_user_id,name,slug) values('${brand}','${owner}','Valiantum','valiantum');insert into public.brand_memberships values('${brand}','${viewer}','VIEWER',now());`);
+async function actor(user,role='authenticated'){await db.exec(`reset role;select set_config('request.jwt.claim.sub','${user}',false);set role ${role};`);}
+const input=[project,card,'Launch',brand,'Launch campaign','A saved brief'];
+const send=()=>db.query('select public.import_project_card($1,$2,$3,$4,$5,$6) as result',input);
+await actor(owner);const first=(await send()).rows[0].result;assert.equal(first.alreadyExists,false);const second=(await send()).rows[0].result;assert.equal(second.alreadyExists,true);assert.equal(first.contentId,second.contentId);
+assert.equal((await db.query('select public.get_project_card_briefs() as result')).rows[0].result[0].status,'NEEDS_REVIEW');
+await db.exec('reset role');let content=(await db.query('select * from public.content_items')).rows;assert.equal(content.length,1);assert.equal(content[0].requires_human_approval,true);assert.equal(content[0].media_policy_satisfied,false);assert.equal(content[0].verification_status,'UNVERIFIED');
+await db.query("update public.content_items set status='APPROVED' where id=$1",[first.contentId]);await actor(owner);assert.equal((await db.query('select public.get_project_card_briefs() as result')).rows[0].result[0].status,'APPROVED');
+await assert.rejects(db.query('insert into public.project_card_briefs(source_project_id) values($1)',[project]),/permission denied/);
+for(const user of [other,viewer]){await actor(user);await assert.rejects(send(),/not permitted/);assert.deepEqual((await db.query('select public.get_project_card_briefs() as result')).rows[0].result,[]);assert.equal((await db.query('select * from public.project_card_briefs')).rows.length,0);}
+await actor('','anon');await assert.rejects(send(),/permission denied/);
+await db.close();console.log('PASS: migration, role boundaries, direct-write denial, idempotency, review defaults and live progress.');})().catch(e=>{console.error(e);process.exitCode=1;});

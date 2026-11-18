@@ -12,7 +12,8 @@ document.querySelector("#login").addEventListener("submit", async (e) => {
     });
     const data = await r.json();
     if (!r.ok) throw Error(data.error);
-    location.replace("/");
+    const next = new URLSearchParams(location.search).get('next');
+    location.replace(next && /^\/marketing(?:\/|$)/.test(next) && !next.includes('\\') ? next : '/');
   } catch (e) {
     error.textContent = e.message;
   } finally {

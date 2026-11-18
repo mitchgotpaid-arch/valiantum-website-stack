@@ -27,6 +27,7 @@ let state = M.normalizeWorkspace({ projects: [], revision: 0 }),
     localStorage.getItem("valiantum-notes-view") === "archived"
       ? "archived"
       : "active";
+const marketingBriefs = new Map();
 const builtinTemplates = M.builtins();
 const project = () =>
   state.projects.find((p) => p.id === active && !p.archived);
@@ -314,6 +315,8 @@ function cardTile(p, l, c, { context = false } = {}) {
     el("span", "priority " + c.priority, c.priority),
   );
   item.append(badges, el("h3", "", c.title));
+  const brief = marketingBriefs.get(c.id);
+  if (brief) item.append(el("p", "marketing-status", "◈ Marketing · " + brief.status.toLowerCase().replaceAll("_", " ")));
   if (c.completed) {
     const mark = el("span", "completion-mark", "✓");
     mark.setAttribute("aria-hidden", "true");
@@ -793,6 +796,7 @@ function openEditor(kind, title, fields, onSave, onArchive, extra = []) {
   $("#editor-error").textContent = "";
   $("#delete-item").hidden = !onArchive;
   $("#editor-extra-actions").replaceChildren(...extra);
+  $("#editor-form button[type=submit]").hidden = false;
   $("#editor-form button[type=submit]").textContent = "Save changes";
   $("#editor").showModal();
   $("#editor").scrollTop = 0;
@@ -1143,6 +1147,10 @@ function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
                 .cards.find((c) => c.id === cardId).archived = true),
           )
       : null,
+    existing ? [button("◈ Send saved card to Marketing OS", () => {
+      $("#editor").close();
+      sendToMarketing(p, existing);
+    }, "secondary")] : [],
   );
 }
 function editNote(noteId, projectId = "") {
@@ -1405,6 +1413,80 @@ $("#logout").onclick = async () => {
 api("/api/workspace")
   .then((data) => {
     state = M.normalizeWorkspace(data);
+    const requestedProject = new URLSearchParams(location.search).get("project");
+    if (state.projects.some(p => p.id === requestedProject && !p.archived)) {
+      active = requestedProject;
+      screen = "board";
+    }
     render();
+    refreshMarketing();
   })
   .catch((e) => notify(e.message));
+
+async function marketingApi(path, options = {}) {
+  const response = await fetch("/marketing/api/projects/" + path, options);
+  const data = await response.json().catch(() => ({error: "Marketing OS is starting. Try again shortly."}));
+  if (!response.ok) {
+    const error = new Error(data.error || "Marketing OS is unavailable.");
+    error.loginUrl = data.loginUrl;
+    error.setup = data.code === "SETUP_REQUIRED";
+    throw error;
+  }
+  return data;
+}
+async function refreshMarketing() {
+  try {
+    const config = await api("/api/marketing/config");
+    if (!config.configured) return;
+    const data = await marketingApi("briefs");
+    marketingBriefs.clear();
+    data.briefs.forEach(brief => marketingBriefs.set(brief.sourceCardId, brief));
+    render();
+  } catch { /* The project workspace remains usable while Marketing is disconnected. */ }
+}
+window.addEventListener("focus", refreshMarketing);
+async function sendToMarketing(p, card) {
+  const section = el("div", "marketing-handoff");
+  section.append(el("p", "field-help", "Send a saved card as a marketing brief for human review. Your card stage stays under your control. This action does not generate AI content or publish anything."));
+  const feedback = el("p", "field-help", "Connecting to Marketing OS…");
+  section.append(feedback);
+  openEditor("MARKETING OS", "Turn a card into a brief.", [section], async () => false, null);
+  $("#editor-form button[type=submit]").hidden = true;
+  try {
+    const linked = marketingBriefs.get(card.id);
+    if (linked) {
+      feedback.textContent = "Already linked · " + linked.status.toLowerCase().replaceAll("_", " ");
+      const link = el("a", "primary", "Open marketing brief ↗");
+      link.href = "/marketing/content/" + linked.contentId;
+      section.append(link);
+      return;
+    }
+    const {brands} = await marketingApi("brands");
+    feedback.textContent = brands.length ? "Choose the brand and review the brief before sending." : "Create a brand in Marketing OS first, then return to this card.";
+    if (!brands.length) {
+      const link = el("a", "primary", "Open Marketing OS"); link.href = "/marketing/brands"; section.append(link); return;
+    }
+    const brand = select("Marketing brand", "brandId", brands[0].id, brands.map(b => [b.id,b.name]));
+    const title = field("Brief title", "marketingTitle", card.title.slice(0,200), "text", 200);
+    const snapshot = ["Project: " + p.name, p.description, "Card: " + card.title, card.description,
+      card.checklist.length ? "Checklist:\n" + card.checklist.map(i => (i.done ? "[x] " : "[ ] ") + i.text).join("\n") : "", p.links].filter(Boolean).join("\n\n");
+    const body = field("Marketing brief", "marketingBody", snapshot.slice(0,50000), "textarea", 50000);
+    const send = button("Send for review", async () => {
+      send.disabled = true;
+      feedback.textContent = "Sending…";
+      try {
+        const result = await marketingApi("briefs", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sourceProjectId:p.id,sourceCardId:card.id,sourceProjectName:p.name.slice(0,160),brandId:brand.querySelector("select").value,title:title.querySelector("input").value,body:body.querySelector("textarea").value})});
+        feedback.textContent = result.alreadyExists ? "This card already has a marketing brief." : "Brief sent. It is waiting for human review.";
+        const link = el("a", "primary", "Open marketing brief ↗"); link.href = result.reviewPath;
+        section.replaceChildren(feedback,link);
+        await refreshMarketing();
+      } catch(error) { feedback.textContent = error.message; send.disabled = false; }
+    }, "primary");
+    section.append(brand,title,body,send);
+  } catch(error) {
+    feedback.textContent = error.message;
+    const link = el("a", "primary", error.loginUrl ? "Connect Marketing account" : "Open Marketing setup");
+    link.href = error.loginUrl || "/marketing/projects";
+    section.append(link);
+  }
+}

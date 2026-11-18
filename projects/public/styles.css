@@ -1553,3 +1553,10 @@ dialog::backdrop {
   margin-top: 18px;
   line-height: 1.8;
 }
+
+.workspace-nav .marketing-nav { display:block; padding:10px 12px; border-radius:8px; color:inherit; text-decoration:none; font-size:14px; }
+.marketing-nav:hover { background:rgba(128,128,128,.12); }
+.marketing-status { font-size:12px; opacity:.85; margin:8px 0; }
+.marketing-handoff { display:grid; gap:16px; min-width:0; }
+.marketing-handoff textarea { min-height:200px; }
+.marketing-handoff a { display:inline-block; text-align:center; text-decoration:none; padding:12px; border-radius:8px; }

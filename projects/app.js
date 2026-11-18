@@ -6,7 +6,7 @@ const { createStore } = require("./store");
 const derive = promisify(scrypt);
 const SESSION_AGE = 12 * 60 * 60 * 1000;
 const { validWorkspace, normalizeWorkspace } = require("./public/model");
-async function createApp(env = process.env) {
+async function createApp(env = process.env, integrations = {}) {
   const production = env.NODE_ENV === "production";
   const hash = env.PROJECTS_PASSWORD_HASH || "";
   if (!/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(hash) || !env.PROJECTS_EMAIL)
@@ -20,6 +20,22 @@ async function createApp(env = process.env) {
     sessions = new Map(),
     attempts = new Map();
   app.disable("x-powered-by");
+  const marketingHandler = integrations.marketingHandler || require('./marketing-runtime.cjs').createMarketingRuntime(env);
+  // Marketing receives its raw body and manages its own Supabase session. The
+  // private Projects owner session protects the complete mounted application.
+  app.use((req,res,next)=>{
+    if(!/^\/marketing(?:\/|$)/.test(req.path))return next();
+    const token=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('valiantum_session='))?.slice(18);
+    const session=sessions.get(token);
+    const oauthCallback=req.path==='/marketing/api/meta/callback';
+    if((!session||session.expires<=Date.now())&&!oauthCallback){
+      if(req.path.startsWith('/marketing/api/'))return res.status(401).json({error:'Sign in to Projects first.',loginUrl:'/login?next=%2Fmarketing'});
+      return res.redirect('/login?next='+encodeURIComponent(req.originalUrl));
+    }
+    res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'same-origin','X-Robots-Tag':'noindex, nofollow'});
+    if(production)res.set('Strict-Transport-Security','max-age=31536000');
+    Promise.resolve(marketingHandler(req,res)).catch(next);
+  });
   // Hostinger terminates TLS at its proxy. Cookies are always Secure in production.
   app.use((req, res, next) => {
     res.set({
@@ -90,6 +106,7 @@ async function createApp(env = process.env) {
       next(e);
     }
   });
+  app.get('/api/marketing/config',auth,(_req,res)=>res.json({path:'/marketing',configured:!!env.NEXT_PUBLIC_SUPABASE_URL&&!!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}));
   app.get("/api/session", auth, (req, res) =>
     res.json({ email: env.PROJECTS_EMAIL }),
   );

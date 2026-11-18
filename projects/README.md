@@ -75,3 +75,6 @@ The card editor starts with Card title, Card stage, and Checklist, followed by t
 ## Archived notes
 
 Ideas & notes now has Active notes and Archived notes tabs with counts. Archiving a note keeps its saved contents and opens Archived notes automatically. Search works within the selected tab. Open an archived note to read its full text, or use Restore note to return it to the active notebook. The selected tab is remembered on that device. The general Archive view remains available too.
+
+
+Marketing OS is integrated at `/marketing`. See [MARKETING-INTEGRATION.md](MARKETING-INTEGRATION.md) for the existing-database connection and deployment workflow.
