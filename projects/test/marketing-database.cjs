@@ -51,7 +51,34 @@ for(const table of ['brand_facts','brand_sources','brand_rules'])assert.equal((a
 assert.equal((await db.query("update public.brand_facts set verification_status='VERIFIED' where id=$1 returning id",[knowledgeFact.id])).rows.length,0);
 await actor(viewer);assert.equal((await db.query("update public.brand_facts set verification_status='VERIFIED' where id=$1 returning id",[knowledgeFact.id])).rows.length,0);
 await actor(owner);assert.ok((await db.query("select action from public.audit_logs where action='brand_facts.update'")).rows.length);
+// Direct social credentials are admin-only; members see metadata, never ciphertext.
+await actor(owner);
+const cipher='v1.encrypted-test-credential-only';
+const saveSocial=(expected=null)=>db.query("select public.save_social_connection($1,'X','account-1','Brand account',$2,array['tweet.read'],null,$3) as id",[brand,cipher,expected]);
+const socialId=(await saveSocial()).rows[0].id;
+const socialRow=(await db.query('select * from public.brand_social_connections where id=$1',[socialId])).rows[0];
+assert.equal(JSON.stringify(socialRow).includes(cipher),false);
+assert.equal((await db.query('select public.read_social_connection_token($1) as token',[socialId])).rows[0].token,cipher);
+await assert.rejects(saveSocial('2001-01-01'),/connection changed/);
+await assert.rejects(db.query('select * from private.social_connection_tokens'),/permission denied/);
+await assert.rejects(db.query("update public.brand_social_connections set external_account_name='forged'"),/permission denied/);
+for(const member of [viewer,editor,reviewer,other]){
+ await actor(member);assert.equal((await db.query('select * from public.brand_social_connections')).rows.length,member===other?0:1);
+ await assert.rejects(saveSocial(),/not permitted/);
+ await assert.rejects(db.query('select public.read_social_connection_token($1)',[socialId]),/not permitted/);
+ await assert.rejects(db.query('select public.disconnect_social_connection($1)',[socialId]),/not permitted/);
+}
+await actor(editor);
+const channelDraft=(await db.query("select public.create_channel_draft($1,'PINTEREST','Pin draft','SOCIAL_POST','A reviewed draft') as id",[brand])).rows[0].id;
+const channelItem=(await db.query('select * from public.content_items where id=$1',[channelDraft])).rows[0];
+assert.equal(channelItem.target_channel,'PINTEREST');assert.equal(channelItem.status,'NEEDS_REVIEW');assert.equal(channelItem.requires_human_approval,true);assert.equal(channelItem.verification_status,'UNVERIFIED');
+await actor(viewer);await assert.rejects(db.query("select public.create_channel_draft($1,'X','Not allowed','SOCIAL_POST','body')",[brand]),/not permitted/);
+await actor(owner);
+await db.query('select public.mark_social_connection_attention($1,$2)',[socialId,socialRow.updated_at]);
+assert.equal((await db.query('select connection_status from public.brand_social_connections where id=$1',[socialId])).rows[0].connection_status,'ACTION_REQUIRED');
+await db.query('select public.disconnect_social_connection($1)',[socialId]);
+await db.exec('reset role');assert.equal((await db.query('select * from private.social_connection_tokens where connection_id=$1',[socialId])).rows.length,0);
 await actor('','anon');await assert.rejects(send(),/permission denied/);
-for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs','brand_facts','brand_sources','brand_rules'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
+for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs','brand_facts','brand_sources','brand_rules','brand_social_connections'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
 
 await db.close();console.log('PASS: complete migration chain, role/tenant boundaries, private credentials/assets, direct-write denial, idempotency, review defaults and live progress.');})().catch(e=>{console.error(e);process.exitCode=1;});

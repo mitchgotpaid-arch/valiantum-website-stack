@@ -12,8 +12,10 @@ export const contentTypeSchema = z.enum([
   "CAMPAIGN_CONTENT",
 ]);
 
+const channelSchema=z.enum(["FACEBOOK","INSTAGRAM","X","TIKTOK","PINTEREST","LINKEDIN","YOUTUBE","THREADS","REDDIT","MASTODON","BLUESKY"]);
 export const contentForReviewSchema = z.object({
   brandId: z.uuid("Select a valid brand."),
+  channel:channelSchema.optional(),
   title: z.string().trim().min(1, "Title is required.").max(200, "Title must be 200 characters or fewer."),
   contentType: contentTypeSchema,
   body: z.string().max(50_000, "Content must be 50,000 characters or fewer."),
@@ -61,6 +63,7 @@ export type DailyBriefingRequestInput = z.infer<typeof dailyBriefingRequestSchem
 export function contentForReviewFromFormData(formData: FormData) {
   return contentForReviewSchema.safeParse({
     brandId: formData.get("brandId"),
+    channel:formData.get("channel")||undefined,
     title: formData.get("title"),
     contentType: formData.get("contentType"),
     body: formData.get("body"),

@@ -16,7 +16,7 @@ const timedFetch=(url,options={})=>fetch(url,{...options,signal:AbortSignal.time
  try{
   const login=await timedFetch(base+'/api/login',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({email:env.PROJECTS_EMAIL,password})});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie').split(';')[0];
-  for(const path of ['/marketing','/marketing/brands','/marketing/content','/marketing/projects','/marketing/agent','/marketing/settings','/marketing/knowledge','/marketing/brands/11111111-1111-4111-8111-111111111111/knowledge']){
+  for(const path of ['/marketing','/marketing/brands','/marketing/content','/marketing/projects','/marketing/agent','/marketing/settings','/marketing/knowledge','/marketing/connections','/marketing/brands/11111111-1111-4111-8111-111111111111/knowledge']){
    console.log('Checking '+path);const response=await timedFetch(base+path,{headers:{cookie},redirect:'manual'});assert.ok([303,307].includes(response.status),path+' must redirect, got '+response.status);
    const target=new URL(response.headers.get('location'),origin);assert.equal(target.pathname,'/marketing/login');assert.equal(target.origin,origin);await response.body?.cancel();
   }

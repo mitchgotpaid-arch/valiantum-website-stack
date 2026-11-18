@@ -8,12 +8,13 @@ import { createContentAction, createFacebookUnpublishedTestAction, createSocialD
 
 const initialState: ContentActionState = {};
 
-export function ContentForReviewForm({ brands }: { brands: BrandSummary[] }) {
+export function ContentForReviewForm({ brands,initialBrandId="",channel }: { brands: BrandSummary[];initialBrandId?:string;channel?:string }) {
   const [state, action, pending] = useActionState(createContentAction, initialState);
   return <form action={action} className="brand-form">
+    {channel?<><input type="hidden" name="channel" value={channel}/><div className="form-intro"><strong>Creating for {channel}</strong><span>This draft is for the selected channel. Account connection does not publish the draft.</span></div></>:null}
     <div className="form-grid">
       <Field label="Brand" name="brandId" error={state.fieldErrors?.brandId?.[0]}>
-        <select id="brandId" name="brandId" defaultValue="" required><option disabled value="">Select a brand</option>{brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select>
+        <select id="brandId" name="brandId" defaultValue={initialBrandId} required><option disabled value="">Select a brand</option>{brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select>
       </Field>
       <Field label="Content type" name="contentType" error={state.fieldErrors?.contentType?.[0]}>
         <select id="contentType" name="contentType" defaultValue="SOCIAL_POST"><option value="ARTICLE">Article</option><option value="SOCIAL_POST">Social post</option><option value="CAPTION">Caption</option><option value="THREAD">Thread</option><option value="GRAPHIC">Graphic</option><option value="CAROUSEL">Carousel</option><option value="VIDEO_CONCEPT">Video concept</option><option value="VIDEO_SCRIPT">Video script</option><option value="CAMPAIGN_CONTENT">Campaign content</option></select>

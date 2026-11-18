@@ -45,7 +45,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </section>
       <section className="card form-card settings-section">
         <div className="section-heading"><div><h2>Publishing channels</h2><p>Connect official provider accounts and choose how approved content leaves Valiantum.</p></div></div>
-        <PublishingSettings destinations={publishingDestinations} metaConfigured={hasMetaEnvironment()} metaOutcome={resolvedSearchParams.meta} />
+        <PublishingSettings brandId={activeBrand.id} destinations={publishingDestinations} metaConfigured={hasMetaEnvironment()} metaOutcome={resolvedSearchParams.meta} />
       </section>
       <section className="card danger-card settings-section">
         <div className="section-heading"><div><h2>Danger zone</h2><p>Permanently remove this Brand after confirming its name.</p></div></div>

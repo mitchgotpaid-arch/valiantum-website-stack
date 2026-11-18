@@ -48,9 +48,9 @@ export async function exchangeMetaCode(code: string, redirectUri: string, env: M
   return parsed.data;
 }
 
-export async function discoverMetaPage(accessToken: string, env: MetaEnvironment): Promise<MetaPage> {
+export async function discoverMetaPages(accessToken: string, env: MetaEnvironment): Promise<MetaPage[]> {
   const fields = "id,name,access_token,instagram_business_account{id,username}";
-  const response = await fetch(`https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/me/accounts?fields=${encodeURIComponent(fields)}`, {
+  const response = await fetch(`https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/me/accounts?limit=100&fields=${encodeURIComponent(fields)}`, {
     cache: "no-store",
     headers: { authorization: `Bearer ${accessToken}` },
   });
@@ -58,6 +58,7 @@ export async function discoverMetaPage(accessToken: string, env: MetaEnvironment
   const parsed = pagesResponseSchema.safeParse(await response.json());
   if (!parsed.success) throw new MetaClientError("ACCOUNT_DISCOVERY_FAILED");
   if (!parsed.data.data.length) throw new MetaClientError("NO_PAGE");
-  if (parsed.data.data.length !== 1) throw new MetaClientError("MULTIPLE_PAGES");
-  return parsed.data.data[0];
+  return parsed.data.data;
 }
+
+export async function discoverMetaPage(accessToken:string,env:MetaEnvironment):Promise<MetaPage>{const pages=await discoverMetaPages(accessToken,env);if(pages.length!==1)throw new MetaClientError("MULTIPLE_PAGES");return pages[0];}

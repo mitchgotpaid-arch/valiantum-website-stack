@@ -1,11 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import {createPendingConnection} from "@/lib/social/pending";
+import {requireUser} from "@/data/auth";
 import { AuthenticationRequiredError } from "@/data/auth";
-import { canAdminPublishingBrand, saveMetaConnection } from "@/data/publishing";
+import { canAdminPublishingBrand } from "@/data/publishing";
 import { getMetaEnvironment } from "@/lib/publishing/config";
-import { encryptProviderCredential } from "@/lib/publishing/credential-crypto";
-import { discoverMetaPage, exchangeMetaCode, MetaClientError } from "@/lib/publishing/meta-client";
+import { discoverMetaPages, exchangeMetaCode, MetaClientError } from "@/lib/publishing/meta-client";
 import { metaOAuthCookieName } from "@/lib/publishing/meta-oauth";
 
 const oauthCookieSchema = z.object({
@@ -30,26 +31,13 @@ export async function GET(request: NextRequest) {
     if (!await canAdminPublishingBrand(stored.brandId)) return finish(env.NEXT_PUBLIC_APP_URL, stored.brandId, "not_permitted");
     const redirectUri = new URL("/marketing/api/meta/callback", env.NEXT_PUBLIC_APP_URL).toString();
     const token = await exchangeMetaCode(code, redirectUri, env);
-    const page = await discoverMetaPage(token.access_token, env);
-    const expiresAt = token.expires_in && token.expires_in > 0 ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null;
-    const credentialContext = `brand:${stored.brandId}:provider:META`;
-    const encryptedCredential = encryptProviderCredential({
-      systemAccessToken: token.access_token,
-      pageAccessToken: page.access_token ?? token.access_token,
-      facebookPageId: page.id,
-      instagramAccountId: page.instagram_business_account?.id ?? null,
-    }, env.META_APP_SECRET, credentialContext);
+    const pages = await discoverMetaPages(token.access_token, env);
+    const {user}=await requireUser();
+    const ticket=createPendingConnection({userId:user.id,brandId:stored.brandId,provider:'META',token,accounts:pages});
+    const response=NextResponse.redirect(new URL('/marketing/connections/select?ticket='+encodeURIComponent(ticket),env.NEXT_PUBLIC_APP_URL));
+    response.cookies.set(metaOAuthCookieName,'',{path:'/marketing/api/meta',httpOnly:true,sameSite:'lax',secure:new URL(env.NEXT_PUBLIC_APP_URL).protocol==='https:',maxAge:0});
+    response.headers.set('Referrer-Policy','no-referrer');return response;
 
-    await saveMetaConnection({
-      brandId: stored.brandId,
-      facebookPageId: page.id,
-      facebookPageName: page.name,
-      instagramAccountId: page.instagram_business_account?.id ?? null,
-      instagramAccountName: page.instagram_business_account?.username ?? null,
-      encryptedCredential,
-      expiresAt,
-    });
-    return finish(env.NEXT_PUBLIC_APP_URL, stored.brandId, page.instagram_business_account ? "connected" : "instagram_missing");
   } catch (error) {
     if (error instanceof AuthenticationRequiredError) return NextResponse.redirect(new URL("/marketing/login", env.NEXT_PUBLIC_APP_URL));
     const code = error instanceof MetaClientError ? error.code.toLowerCase() : "failed";
@@ -76,9 +64,10 @@ function safeEqual(received: string, expected: string): boolean {
 }
 
 function finish(appUrl: string, brandId: string | null, outcome: string): NextResponse {
-  const url = new URL("/marketing/settings", appUrl);
+  const url = new URL("/marketing/connections", appUrl);
   if (brandId) url.searchParams.set("brand", brandId);
-  url.searchParams.set("meta", outcome);
+  url.searchParams.set("outcome", outcome);
+  url.searchParams.set("platform","META");
   const response = NextResponse.redirect(url);
   response.cookies.set(metaOAuthCookieName, "", {path:"/marketing/api/meta",httpOnly:true,sameSite:"lax",secure:new URL(appUrl).protocol==="https:",maxAge:0});
   return response;

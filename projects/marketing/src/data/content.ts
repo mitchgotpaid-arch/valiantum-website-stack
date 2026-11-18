@@ -139,6 +139,7 @@ export async function getContentReview(contentId: string): Promise<ContentReview
 }
 
 export async function createContentForReview(input: ContentForReviewInput): Promise<string> {
+  if(input.channel){const {createChannelDraft}=await import("./social-connections");return createChannelDraft({...input,channel:input.channel});}
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("create_content_for_review", {
     p_brand_id: input.brandId,
