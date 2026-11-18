@@ -8,8 +8,9 @@ const SESSION_AGE = 12 * 60 * 60 * 1000;
 const { validWorkspace, normalizeWorkspace } = require("./public/model");
 async function createApp(env = process.env, integrations = {}) {
   const production = env.NODE_ENV === "production";
+  const ownerAuth = integrations.ownerAuth || require("./owner-auth.cjs").createOwnerAuth(env);
   const hash = env.PROJECTS_PASSWORD_HASH || "";
-  if (!/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(hash) || !env.PROJECTS_EMAIL)
+  if (!ownerAuth.enabled && (!/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(hash) || !env.PROJECTS_EMAIL))
     throw new Error(
       "Set PROJECTS_EMAIL and PROJECTS_PASSWORD_HASH. Run npm run password to generate the hash.",
     );
@@ -20,12 +21,14 @@ async function createApp(env = process.env, integrations = {}) {
   const store = integrations.store || await createStore(env),
     app = express(),
     sessions = new Map(),
-    attempts = new Map();
+    attempts = new Map(),
+    passwordTickets = new Map();
+  const ownerFor = (req,res) => req.ownerAuth || (req.ownerAuth=ownerAuth.forRequest(req,res));
   app.disable("x-powered-by");
   const marketingHandler = integrations.marketingHandler || require('./marketing-runtime.cjs').createMarketingRuntime(env);
   // Marketing receives its raw body and manages its own Supabase session. The
   // private Projects owner session protects the complete mounted application.
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (!/^\/marketing(?:\/|$)/.test(req.path)) return next();
     const security = require('./marketing-security.cjs').marketingSecurity(env);
     // Next reads the trusted request CSP to nonce its own bootstrap scripts.
@@ -39,9 +42,13 @@ async function createApp(env = process.env, integrations = {}) {
       'X-Robots-Tag': 'noindex, nofollow',
     });
     if (production) res.set('Strict-Transport-Security', 'max-age=31536000');
-    const session = sessions.get(readSessionToken(req));
+    let session = sessions.get(readSessionToken(req));
+    if (ownerAuth.enabled) {
+      try {req.user=await ownerFor(req,res).user();session=req.user?{expires:Date.now()+SESSION_AGE}:null;}
+      catch(error){return next(error);}
+    }
     const oauthCallback = req.path === '/marketing/api/meta/callback';
-    if ((!session || session.expires <= Date.now()) && !oauthCallback) {
+    if ((!session || session.expires <= Date.now()) && !(oauthCallback && !ownerAuth.enabled)) {
       if (req.path.startsWith('/marketing/api/')) return res.status(401).json({error: 'Sign in to Projects first.', loginUrl: '/login?next=%2Fmarketing'});
       return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
     }
@@ -66,17 +73,22 @@ async function createApp(env = process.env, integrations = {}) {
     next();
   });
   app.use(express.json({ limit: "2mb" }));
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (["POST", "PUT", "DELETE", "PATCH"].includes(req.method)) {
       const expected = env.APP_ORIGIN || `http://localhost:${env.PORT || 3001}`;
       if (req.get("origin") !== expected || !req.is("application/json"))
         return res.status(403).json({ error: "Request origin rejected." });
     }
-    const token = readSessionToken(req);
-    const session = sessions.get(token);
-    if (session && session.expires > Date.now()) {
-      req.session = session;
-      req.token = token;
+    if(ownerAuth.enabled){
+      const publicPaths=new Set(['/login','/login.js','/styles.css','/logo.png','/health','/api/login','/api/login-code','/api/verify-code','/api/auth/config','/auth/callback']);
+      if(!publicPaths.has(req.path)){
+        try {req.user=await ownerFor(req,res).user();if(req.user)req.session={expires:Date.now()+SESSION_AGE};}
+        catch(error){return next(error);}
+      }
+    }else{
+      const token = readSessionToken(req);
+      const session = sessions.get(token);
+      if (session && session.expires > Date.now()) {req.session=session;req.token=token;}
     }
     next();
   });
@@ -101,6 +113,12 @@ async function createApp(env = process.env, integrations = {}) {
       const { email, password } = req.body || {};
       if (typeof password !== "string" || password.length > 1024)
         return res.status(401).json({ error: "Incorrect email or password." });
+      if(ownerAuth.enabled){
+        if(typeof email!=='string'||email.length>320)return res.status(401).json({error:'Incorrect email or password.'});
+        const user=await ownerFor(req,res).signIn(email,password);
+        if(!user)return res.status(401).json({error:'Incorrect email or password. You can use an email sign-in code to choose one password for your workspace.'});
+        attempts.delete('owner');return res.json({email:user.email});
+      }
       const [salt, expected] = hash.split(":");
       const actual = await derive(password, salt, 64);
       if (
@@ -117,11 +135,67 @@ async function createApp(env = process.env, integrations = {}) {
       next(e);
     }
   });
+  app.get('/api/auth/config',(_req,res)=>res.json({singleSignIn:ownerAuth.enabled}));
+  app.post('/api/login-code',async(req,res,next)=>{
+    if(!ownerAuth.enabled)return res.status(404).json({error:'Email sign-in is not configured.'});
+    const email=req.body?.email;
+    if(typeof email!=='string'||email.length>320||email.toLowerCase()!==(env.PROJECTS_EMAIL||'').toLowerCase())return res.json({ok:true});
+    const now=Date.now(),last=attempts.get('email-code');
+    if(last&&last.reset>now)return res.status(429).json({error:'Please wait one minute before requesting another sign-in link.'});
+    attempts.set('email-code',{count:1,reset:now+60000});
+    try{const sent=await ownerFor(req,res).sendCode(email);return sent?res.json({ok:true}):res.status(429).json({error:'A sign-in link could not be sent right now. Please wait a moment and try again.'});}catch(error){next(error);}
+  });
+  app.post('/api/verify-code',async(req,res,next)=>{
+    if(!ownerAuth.enabled)return res.status(404).json({error:'Email sign-in is not configured.'});
+    const {email,code,link}=req.body||{};
+    const hasLink=typeof link==='string'&&link.length<=8000;
+    if(!hasLink&&(typeof email!=='string'||email.length>320||typeof code!=='string'||!/^\d{6,10}$/.test(code)))return res.status(400).json({error:'Enter your email and the sign-in code.'});
+    const now=Date.now();let rate=attempts.get('verify-code');if(!rate||rate.reset<now){rate={count:0,reset:now+15*60000};attempts.set('verify-code',rate);}
+    if(rate.count++>=10)return res.status(429).json({error:'Too many attempts. Request a new code later.'});
+    try{
+      const result=hasLink?await ownerFor(req,res).verifyLink(link):await ownerFor(req,res).verifyCode(email,code);
+      if(!result)return res.status(401).json({error:'That sign-in link or code was not accepted or has expired.'});
+      attempts.delete('verify-code');attempts.delete('owner');
+      const ticket=randomBytes(32).toString('hex');passwordTickets.set(ticket,{ownerId:result.user.id,tokenHash:result.tokenHash,expires:now+10*60000});
+      res.append('Set-Cookie',`valiantum_password_setup=${ticket}; HttpOnly; SameSite=Strict; Path=/api/account/password; Max-Age=600${production?'; Secure':''}`);
+      res.json({ok:true,redirect:'/account/password'});
+    }catch(error){next(error);}
+  });
+  app.get('/auth/callback',async(req,res)=>{
+    res.set('Referrer-Policy','no-referrer');
+    if(!ownerAuth.enabled||typeof req.query.code!=='string'||req.query.code.length>4096)return res.redirect('/login?auth=link-failed');
+    try{
+      const result=await ownerFor(req,res).exchangeCode(req.query.code);
+      if(!result)return res.redirect('/login?auth=link-failed');
+      const ticket=randomBytes(32).toString('hex');passwordTickets.set(ticket,{ownerId:result.user.id,tokenHash:result.tokenHash,expires:Date.now()+10*60000});
+      res.append('Set-Cookie',`valiantum_password_setup=${ticket}; HttpOnly; SameSite=Strict; Path=/api/account/password; Max-Age=600${production?'; Secure':''}`);
+      res.redirect('/account/password');
+    }catch{return res.redirect('/login?auth=link-failed');}
+  });
+  app.get('/account/password',(req,res)=>req.session?res.sendFile(path.join(__dirname,'public','account-password.html')):res.redirect('/login'));
+  app.post('/api/account/password',auth,async(req,res,next)=>{
+    if(!ownerAuth.enabled)return res.status(404).json({error:'Email sign-in is not configured.'});
+    const ticket=(req.headers.cookie||'').split(';').map(value=>value.trim()).find(value=>value.startsWith('valiantum_password_setup='))?.slice('valiantum_password_setup='.length);
+    const permission=passwordTickets.get(ticket),password=req.body?.password;
+    if(password!==req.body?.confirmation)return res.status(400).json({error:'The passwords do not match.'});
+    if(!permission||permission.expires<Date.now()||permission.ownerId!==req.user.id)return res.status(403).json({error:'Verify a fresh email sign-in link before setting your password.'});
+    if(typeof password!=='string'||password.length<16||password.length>1024)return res.status(400).json({error:'Use a password of 16 to 1024 characters.'});
+    try{
+      if(permission.tokenHash!==await ownerFor(req,res).tokenHash())return res.status(403).json({error:'Verify a fresh email sign-in link before setting your password.'});
+      if(passwordTickets.get(ticket)!==permission)return res.status(403).json({error:'Verify a fresh email sign-in link.'});
+      passwordTickets.delete(ticket);
+      if(!await ownerFor(req,res).password(password))return res.status(400).json({error:'The password could not be updated. Request a fresh email sign-in link and choose a stronger password.'});
+      passwordTickets.delete(ticket);
+      res.append('Set-Cookie',`valiantum_password_setup=; HttpOnly; SameSite=Strict; Path=/api/account/password; Max-Age=0${production?'; Secure':''}`);
+      res.json({ok:true});
+    }catch(error){next(error);}
+  });
   app.get('/api/marketing/config',auth,(_req,res)=>res.json({path:'/marketing',configured:!!env.NEXT_PUBLIC_SUPABASE_URL&&!!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}));
   app.get("/api/session", auth, (req, res) =>
-    res.json({ email: env.PROJECTS_EMAIL }),
+    res.json({ email: req.user?.email || env.PROJECTS_EMAIL }),
   );
-  app.post("/api/logout", auth, (req, res) => {
+  app.post("/api/logout", auth, async (req, res, next) => {
+    if(ownerAuth.enabled){try{await ownerFor(req,res).signOut();return res.json({ok:true});}catch(error){return next(error);}}
     sessions.delete(req.token);
     res.set("Set-Cookie", cookie("") + "; Max-Age=0").json({ ok: true });
   });
@@ -199,6 +273,8 @@ async function createApp(env = process.env, integrations = {}) {
   const cleanup = setInterval(() => {
     for (const [k, v] of sessions)
       if (v.expires < Date.now()) sessions.delete(k);
+    for (const [k, v] of passwordTickets)
+      if (v.expires < Date.now()) passwordTickets.delete(k);
   }, 60000);
   cleanup.unref();
   return {

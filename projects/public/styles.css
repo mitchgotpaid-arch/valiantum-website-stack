@@ -1560,3 +1560,7 @@ dialog::backdrop {
 .marketing-handoff { display:grid; gap:16px; min-width:0; }
 .marketing-handoff textarea { min-height:200px; }
 .marketing-handoff a { display:inline-block; text-align:center; text-decoration:none; padding:12px; border-radius:8px; }
+
+#email-signin { margin-top:20px; display:grid; gap:14px; }
+#code-entry { display:grid; gap:14px; }
+[hidden] { display:none !important; }

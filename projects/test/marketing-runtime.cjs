@@ -2,6 +2,9 @@
 // Uses only synthetic Projects credentials and an in-memory store; no paid calls.
 const assert=require('node:assert/strict');const {scryptSync}=require('node:crypto');
 process.env.NODE_ENV='production';
+// This synthetic smoke test exercises Next missing-session handling; the shared
+// account provider is covered separately with isolated provider fixtures.
+process.env.PROJECTS_SUPABASE_OWNER_ID='';
 const {createApp}=require('../app');
 const timedFetch=(url,options={})=>fetch(url,{...options,signal:AbortSignal.timeout(15000)});
 (async()=>{
