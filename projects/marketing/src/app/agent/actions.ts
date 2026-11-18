@@ -80,7 +80,7 @@ export async function generateDailyBriefingAction(_state: AgentDraftActionState,
     if (error instanceof AiDataError && error.code === "BUDGET_EXCEEDED") return { error: "The $15 monthly OpenAI budget does not have enough remaining for another briefing. No API request was made." };
     if (error instanceof AiDataError || error instanceof BrandDataError) return { error: "The briefing could not be saved. Nothing was published." };
     if (error instanceof Error && error.message === "OpenAI draft generation is not configured.") return { error: "Add the server-only OpenAI API key before generating briefings." };
-    console.error(`[agent] daily briefing generation failed: ${error instanceof Error ? `${error.name}: ${error.message.slice(0, 500)}` : "unknown error"}`);
+    console.error(`[agent] daily briefing generation failed: ${error instanceof Error ? error.name : "unknown error"}`);
     return { error: "Daily briefing generation failed. Nothing was saved or published. Try again later." };
   }
   revalidatePath("/");

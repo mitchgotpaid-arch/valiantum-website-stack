@@ -1,9 +1,11 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { listContentQueue } from "@/data/content";
 import { hasSupabaseEnv } from "@/lib/env";
 
 export default async function ContentPage() {
+  await requirePageUser();
   if (!hasSupabaseEnv()) return <PageFrame title="Content" description="A central workspace for ideas, research, drafts, verification, approval, and publication history."><div className="card section-card"><div className="empty"><strong>Connect Supabase first</strong>The Approval Queue requires authenticated Brand-scoped data.</div></div></PageFrame>;
   const items = await listContentQueue();
   const captured = items.filter((item) => item.status === "VERIFYING" && item.contentType === "RESEARCH_CAPTURE");

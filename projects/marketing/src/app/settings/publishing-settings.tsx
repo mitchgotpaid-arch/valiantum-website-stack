@@ -19,7 +19,7 @@ export function PublishingSettings({ destinations, metaConfigured, metaOutcome }
       <article className="channel-card">
         <div className="channel-icon meta-icon">M</div>
         <div className="channel-copy"><div className="channel-title"><strong>Facebook + Instagram</strong><span className={`status ${metaConnected ? "status-connected" : "status-setup_required"}`}>{metaConnected ? "Connected" : "Setup required"}</span></div><p>Automatic publishing through Meta’s official APIs. One Meta app can connect a Facebook Page and its Instagram professional account.</p><div className="channel-details"><span>Facebook: {destinationLabel(facebook)}</span><span>Instagram: {destinationLabel(instagram)}</span></div></div>
-        {metaConfigured && brandId ? <a className="button" href={`/api/meta/connect?brandId=${encodeURIComponent(brandId)}`}>{metaConnected ? "Reconnect Meta" : "Connect Meta"}</a> : <button className="button" disabled type="button">Add Meta credentials first</button>}
+        {metaConfigured && brandId ? <a className="button" href={`/marketing/api/meta/connect?brandId=${encodeURIComponent(brandId)}`}>{metaConnected ? "Reconnect Meta" : "Connect Meta"}</a> : <button className="button" disabled type="button">Add Meta credentials first</button>}
       </article>
 
       <article className="channel-card">

@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandForm } from "@/app/brands/brand-form";
@@ -12,6 +13,7 @@ import { hasMetaEnvironment } from "@/lib/publishing/config";
 import { PublishingSettings } from "./publishing-settings";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ brand?: string; meta?: string }> }) {
+  await requirePageUser();
   const brands = hasSupabaseEnv() ? await listBrands() : [];
   const resolvedSearchParams = await searchParams;
   const requestedBrandId = resolvedSearchParams.brand;

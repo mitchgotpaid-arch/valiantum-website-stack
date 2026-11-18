@@ -15,7 +15,9 @@ async function createApp(env = process.env, integrations = {}) {
     );
   if (production && !/^https:\/\/[^/]+$/.test(env.APP_ORIGIN || ""))
     throw new Error("APP_ORIGIN must be the exact HTTPS origin in production.");
-  const store = await createStore(env),
+  const sessionCookieName = production ? "__Host-valiantum_session" : "valiantum_session";
+  const readSessionToken = req => (req.headers.cookie || "").split(";").map(value => value.trim()).find(value => value.startsWith(sessionCookieName + "="))?.slice(sessionCookieName.length + 1);
+  const store = integrations.store || await createStore(env),
     app = express(),
     sessions = new Map(),
     attempts = new Map();
@@ -23,18 +25,31 @@ async function createApp(env = process.env, integrations = {}) {
   const marketingHandler = integrations.marketingHandler || require('./marketing-runtime.cjs').createMarketingRuntime(env);
   // Marketing receives its raw body and manages its own Supabase session. The
   // private Projects owner session protects the complete mounted application.
-  app.use((req,res,next)=>{
-    if(!/^\/marketing(?:\/|$)/.test(req.path))return next();
-    const token=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('valiantum_session='))?.slice(18);
-    const session=sessions.get(token);
-    const oauthCallback=req.path==='/marketing/api/meta/callback';
-    if((!session||session.expires<=Date.now())&&!oauthCallback){
-      if(req.path.startsWith('/marketing/api/'))return res.status(401).json({error:'Sign in to Projects first.',loginUrl:'/login?next=%2Fmarketing'});
-      return res.redirect('/login?next='+encodeURIComponent(req.originalUrl));
+  app.use((req, res, next) => {
+    if (!/^\/marketing(?:\/|$)/.test(req.path)) return next();
+    const security = require('./marketing-security.cjs').marketingSecurity(env);
+    // Next reads the trusted request CSP to nonce its own bootstrap scripts.
+    req.headers['content-security-policy'] = security.policy;
+    req.headers['x-nonce'] = security.nonce;
+    res.set({
+      'Content-Security-Policy': security.policy,
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
+      'X-Robots-Tag': 'noindex, nofollow',
+    });
+    if (production) res.set('Strict-Transport-Security', 'max-age=31536000');
+    const session = sessions.get(readSessionToken(req));
+    const oauthCallback = req.path === '/marketing/api/meta/callback';
+    if ((!session || session.expires <= Date.now()) && !oauthCallback) {
+      if (req.path.startsWith('/marketing/api/')) return res.status(401).json({error: 'Sign in to Projects first.', loginUrl: '/login?next=%2Fmarketing'});
+      return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
     }
-    res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'same-origin','X-Robots-Tag':'noindex, nofollow'});
-    if(production)res.set('Strict-Transport-Security','max-age=31536000');
-    Promise.resolve(marketingHandler(req,res)).catch(next);
+    // Keep Next multipart server actions intact while rejecting forged or missing origins.
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && req.get('origin') !== (env.APP_ORIGIN || `http://localhost:${env.PORT || 3001}`)) {
+      return res.status(403).json({error: 'Request origin rejected.'});
+    }
+    Promise.resolve(marketingHandler(req, res)).catch(next);
   });
   // Hostinger terminates TLS at its proxy. Cookies are always Secure in production.
   app.use((req, res, next) => {
@@ -57,11 +72,7 @@ async function createApp(env = process.env, integrations = {}) {
       if (req.get("origin") !== expected || !req.is("application/json"))
         return res.status(403).json({ error: "Request origin rejected." });
     }
-    const token = (req.headers.cookie || "")
-      .split(";")
-      .map((x) => x.trim())
-      .find((x) => x.startsWith("valiantum_session="))
-      ?.slice(18);
+    const token = readSessionToken(req);
     const session = sessions.get(token);
     if (session && session.expires > Date.now()) {
       req.session = session;
@@ -70,7 +81,7 @@ async function createApp(env = process.env, integrations = {}) {
     next();
   });
   const cookie = (token) =>
-    `valiantum_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_AGE / 1000}${production ? "; Secure" : ""}`;
+    `${sessionCookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_AGE / 1000}${production ? "; Secure" : ""}`;
   const auth = (req, res, next) =>
     req.session ? next() : res.status(401).json({ error: "Please sign in." });
   app.post("/api/login", async (req, res, next) => {

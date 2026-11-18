@@ -6,7 +6,7 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState = { error?: string };
-const loginSchema = z.object({ email: z.email(), password: z.string().min(8) });
+const loginSchema = z.object({ email: z.email().max(320), password: z.string().min(8).max(1024) });
 
 export async function login(_state: LoginState, formData: FormData): Promise<LoginState> {
   if (!hasSupabaseEnv()) return { error: "Supabase is not configured for this environment." };

@@ -23,7 +23,7 @@ test('Marketing mount is private and passes raw Next bodies without weakening Pr
   const login=await fetch(base+'/api/login',{method:'POST',headers:{origin:'http://localhost','content-type':'application/json'},body:JSON.stringify({email:env.PROJECTS_EMAIL,password})});
   const cookie=login.headers.get('set-cookie').split(';')[0];
   const nextBody='action=hello&payload=raw';
-  const response=await fetch(base+'/marketing/projects',{method:'POST',headers:{cookie,'content-type':'application/x-www-form-urlencoded'},body:nextBody});
+  const response=await fetch(base+'/marketing/projects',{method:'POST',headers:{cookie,origin:'http://localhost','content-type':'application/x-www-form-urlencoded'},body:nextBody});
   assert.equal(response.status,200);assert.equal((await response.json()).body,nextBody);
   assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
   assert.equal((await fetch(base+'/api/workspace',{method:'PUT',headers:{cookie,'content-type':'application/json',origin:'https://elsewhere.example'},body:'{}'})).status,403);

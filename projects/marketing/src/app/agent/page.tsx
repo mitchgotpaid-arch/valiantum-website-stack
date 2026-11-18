@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { listBrands } from "@/data/brands";
@@ -9,6 +10,7 @@ import { AgentDraftForm } from "./agent-draft-form";
 import { DailyBriefingForm } from "./daily-briefing-form";
 
 export default async function AgentPage() {
+  await requirePageUser();
   const [brands, budget] = hasSupabaseEnv() ? await Promise.all([listBrands(), getAiBudgetStatus()]) : [[], null];
   return <PageFrame title="Marketing Agent" description="Plan and carry out constrained marketing work with explicit permissions and a complete audit trail.">
     {budget ? <section className="card section-card settings-card"><div className="section-heading"><div><div className="eyebrow">API cost guard</div><h2>{formatMicros(budget.remainingCostMicros)} remaining this month</h2><p>Hard application cap: ${(budget.monthlyBudgetCents / 100).toFixed(2)} across all Brands. Briefings reserve up to $0.45 before any OpenAI request; routine Luna drafts reserve $0.01. Failed runs may count the full reservation against this app cap, so this is not an exact OpenAI bill.</p></div><span className="badge">{formatMicros(budget.usedCostMicros)} counted toward cap</span></div></section> : null}

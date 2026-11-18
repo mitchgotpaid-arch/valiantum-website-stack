@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageFrame } from "@/components/page-frame";
@@ -6,6 +7,7 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { ContentForReviewForm } from "../content-forms";
 
 export default async function NewContentPage() {
+  await requirePageUser();
   if (!hasSupabaseEnv()) redirect("/content");
   const brands = await listBrands();
   return <PageFrame title="Submit content for review" description="Create a human-authored or imported draft with fail-closed verification, risk, approval, and media defaults.">

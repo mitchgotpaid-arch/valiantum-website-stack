@@ -11,7 +11,8 @@
     "postinstall": "node scripts/build-marketing.cjs",
     "test:marketing": "vitest run --config marketing/vitest.config.ts",
     "typecheck:marketing": "tsc --noEmit --project marketing/tsconfig.json && tsc --noEmit --project marketing/tsconfig.tests.json",
-    "test:marketing-db": "node test/marketing-database.cjs"
+    "test:marketing-db": "node test/marketing-database.cjs",
+    "test:marketing-runtime": "node test/marketing-runtime.cjs"
   },
   "engines": {
     "node": ">=22"

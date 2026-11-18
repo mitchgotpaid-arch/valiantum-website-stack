@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.has("error")) return finish(env.NEXT_PUBLIC_APP_URL, stored.brandId, "cancelled");
   const state = request.nextUrl.searchParams.get("state");
   const code = request.nextUrl.searchParams.get("code");
-  if (!state || !code || !safeEqual(state, stored.state) || Date.now() - stored.issuedAt > 600_000) {
+  if (!state || !code || !safeEqual(state, stored.state) || (Date.now() - stored.issuedAt > 600_000 || stored.issuedAt > Date.now())) {
     return finish(env.NEXT_PUBLIC_APP_URL, stored.brandId, "invalid_state");
   }
 
@@ -80,6 +80,6 @@ function finish(appUrl: string, brandId: string | null, outcome: string): NextRe
   if (brandId) url.searchParams.set("brand", brandId);
   url.searchParams.set("meta", outcome);
   const response = NextResponse.redirect(url);
-  response.cookies.delete(metaOAuthCookieName);
+  response.cookies.set(metaOAuthCookieName, "", {path:"/marketing/api/meta",httpOnly:true,sameSite:"lax",secure:new URL(appUrl).protocol==="https:",maxAge:0});
   return response;
 }

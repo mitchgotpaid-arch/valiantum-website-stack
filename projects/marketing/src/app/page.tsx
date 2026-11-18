@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { listBrands } from "@/data/brands";
@@ -5,6 +6,7 @@ import { listContentQueue } from "@/data/content";
 import { hasSupabaseEnv } from "@/lib/env";
 
 export default async function DashboardPage() {
+  await requirePageUser();
   const databaseConfigured = hasSupabaseEnv();
   const [content, brands] = databaseConfigured
     ? await Promise.all([listContentQueue(), listBrands()])

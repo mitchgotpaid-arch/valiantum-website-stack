@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PageFrame } from "@/components/page-frame";
@@ -10,6 +11,7 @@ import { BriefingSocialDraftForm, FacebookUnpublishedTestForm, ReviewDecisionFor
 import { ManualHandoff } from "../manual-handoff";
 
 export default async function ContentReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePageUser();
   if (!hasSupabaseEnv()) redirect("/content");
   const { id } = await params;
   const content = await getContentReview(id);

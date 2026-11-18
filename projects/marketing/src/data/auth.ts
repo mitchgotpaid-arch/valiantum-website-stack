@@ -1,4 +1,5 @@
 import "server-only";
+import {cache} from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export class AuthenticationRequiredError extends Error {
@@ -8,9 +9,9 @@ export class AuthenticationRequiredError extends Error {
   }
 }
 
-export async function requireUser() {
+export const requireUser = cache(async () => {
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new AuthenticationRequiredError();
   return { supabase, user };
-}
+});

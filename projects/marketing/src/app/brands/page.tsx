@@ -1,9 +1,11 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { listBrands } from "@/data/brands";
 import { hasSupabaseEnv } from "@/lib/env";
 
 export default async function BrandsPage() {
+  await requirePageUser();
   if (!hasSupabaseEnv()) return <PageFrame title="Brands" description="Configure brand identity, product truth, sources, media rules, budgets, and publication authority."><SetupRequired /></PageFrame>;
   const brands = await listBrands();
   return (

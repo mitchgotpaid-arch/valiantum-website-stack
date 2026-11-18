@@ -1,3 +1,4 @@
+import {requirePageUser} from '@/data/page-auth';
 import Link from 'next/link';
 import {PageFrame} from '@/components/page-frame';
 import {listProjectBriefs,ProjectBriefError} from '@/data/project-briefs';
@@ -5,6 +6,7 @@ import {hasSupabaseEnv} from '@/lib/env';
 import {AuthenticationRequiredError} from '@/data/auth';
 import {redirect} from 'next/navigation';
 export default async function ProjectBriefsPage(){
+  await requirePageUser();
   let briefs:Awaited<ReturnType<typeof listProjectBriefs>>=[];
   let setup=!hasSupabaseEnv();
   if(!setup){
