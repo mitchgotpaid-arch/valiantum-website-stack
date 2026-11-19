@@ -17,3 +17,12 @@ describe('brand knowledge eligibility and readiness',()=>{
  it('flags missing evidence, unsupported numbers, missing disclosures and avoided language',()=>{const context=buildBrandKnowledge(brand,governance(),'',now).context;const issues=inspectDraftAgainstKnowledge({body:'Guaranteed 50% off. [VERIFY: price]',claimReferences:[{claim:'Missing sentence',factIds:['other-brand-fact']}]},context);expect(issues.length).toBeGreaterThanOrEqual(5);expect(inspectDraftAgainstKnowledge({body:'The product organizes your recipes. Terms apply.',claimReferences:[{claim:'The product organizes your recipes.',factIds:[governance().facts[0].id]}]},context)).toEqual([]);});
  it('requires explicit owner attestation and rejects invalid expiration dates',()=>{const base={factKey:'feature',value:'Useful.',sourceUrl:'https://brand.example',verificationStatus:'VERIFIED',validUntil:'',ownerReviewed:false};expect(trainedFactSchema.safeParse(base).success).toBe(false);expect(trainedFactSchema.safeParse({...base,ownerReviewed:true}).success).toBe(true);for(const validUntil of ['2026-99-99','2026-02-31'])expect(trainedFactSchema.safeParse({...base,ownerReviewed:true,validUntil}).success).toBe(false);});
 });
+
+describe('review-only automatic drafting readiness',()=>{
+ it('allows private evergreen ideation with missing factual references but blocks missing core identity',async()=>{
+  const {canDraftAutomatically}=await import('./knowledge');
+  const checks=['identity','audience','voice','conflicts','budget'].map(key=>({key,label:key,passed:true,help:''}));
+  expect(canDraftAutomatically({checks:[...checks,{key:'facts',label:'Facts',passed:false,help:''}]})).toBe(true);
+  expect(canDraftAutomatically({checks:checks.map(c=>c.key==='identity'?{...c,passed:false}:c)})).toBe(false);
+ });
+});

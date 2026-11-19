@@ -59,3 +59,7 @@ export function inspectDraftAgainstKnowledge(draft:{body:string;claimReferences:
  if(numberTokens.some(token=>!evidence.includes(token)))issues.push('A number in the copy needs manual evidence checking.');
  return [...new Set(issues)].slice(0,12);
 }
+
+// Private, review-only ideation needs a coherent brand foundation, but does not
+// need a complete factual library. Missing evidence stays visible on every draft.
+export function canDraftAutomatically(training:Pick<BrandKnowledgeResult,'checks'>){const essential=['identity','audience','voice','conflicts','budget'];return essential.every(key=>training.checks.some(check=>check.key===key&&check.passed));}

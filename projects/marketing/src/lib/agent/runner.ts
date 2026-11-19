@@ -1,7 +1,7 @@
 import {createClient} from '@supabase/supabase-js';
 import {getPublicEnv} from '@/lib/env';
 import {getAiEnvironment} from '@/lib/ai/config';
-import {buildBrandKnowledge} from '@/lib/brands/knowledge';
+import {buildBrandKnowledge,canDraftAutomatically} from '@/lib/brands/knowledge';
 import {generateBrandDraft} from '@/lib/ai/draft-generator';
 import {chooseAgentPlan,repeatsRecentDraft} from './planner';
 import {decodeAgentContext,type AgentWork} from './work';
@@ -14,12 +14,13 @@ export async function runDraftAgentTick(){
  let reserved=false;
  try{
   const {brand,governance}=decodeAgentContext(work),training=buildBrandKnowledge(brand,governance);
-  if(!training.ready){await finish({status:'BLOCKED',reason:'NEEDS_KNOWLEDGE',summary:'Complete Brand Knowledge: '+training.checks.filter(c=>!c.passed).map(c=>c.label).join(', ')});return {processed:true};}
+  if(!canDraftAutomatically(training)){await finish({status:'BLOCKED',reason:'NEEDS_KNOWLEDGE',summary:'Complete Brand Knowledge: '+training.checks.filter(c=>!c.passed).map(c=>c.label).join(', ')});return {processed:true};}
   const reservation=await db.rpc('reserve_draft_agent_run',{p_worker_key:key,p_run_id:work.runId,p_model:ai.OPENAI_DRAFT_MODEL});
   if(reservation.error){await finish({status:'BLOCKED',reason:reservation.error.code==='P0001'?'BUDGET_LIMIT':'PAUSED',summary:reservation.error.code==='P0001'?'The monthly AI budget is fully used or reserved. No AI request was made.':'The run could not reserve its budget. Check settings before the next run.'});return {processed:true};}
   reserved=true;const planned=await chooseAgentPlan(training.context,work.recent,ai);
   const focused=buildBrandKnowledge(brand,governance,planned.plan.brief);
   const started=performance.now();const draft=await generateBrandDraft({brand:focused.context,brief:planned.plan.brief+'\nTarget channel: '+planned.plan.channel,contentType:'SOCIAL_POST'},ai);
+  if(!training.ready){const issue='Brand setup can be improved: '+training.checks.filter(c=>!c.passed).map(c=>c.label).join(', ');draft.requiresResearch=true;draft.researchNotes.push(issue);if(draft.knowledgeRecord)draft.knowledgeRecord.issues.push(issue);}
   if(repeatsRecentDraft(draft.body,work.recent)){await finish({status:'SKIPPED',reason:'REPEATED_CONTENT',summary:'The draft was too similar to recent content. It was not added to your queue.',plan:planned.plan});return {processed:true};}
   const cost=planned.estimatedCostMicros+draft.estimatedCostMicros;
   if(cost>30000)throw Error('Run cost exceeded reservation');

@@ -1,6 +1,6 @@
 # Prompt, review, publish
 
-The Agent page always displays **What would you like to post?** above automatic-drafting controls. Manual assignments work with incomplete brand teaching: missing setup is shown beside the form and retained in the draft's evidence notes. Automatic drafting and live research still require the full knowledge checks. Manual generation never publishes directly.
+The Agent page always displays **What would you like to post?** above automatic-drafting controls. Manual assignments work with incomplete brand teaching: missing setup is shown beside the form and retained in the draft's evidence notes. Automatic draft-only ideation requires the core brand foundation and records missing evidence as review warnings. Live research still requires the full knowledge checks. Manual generation never publishes directly.
 
 Choose a brand, destination and brief, then **Create post draft**. Facebook text posts have **Publish or schedule** on the review page, showing the exact destination Page. The owner/administrator must attest that the displayed text and its claims were reviewed. **Approve & publish to Facebook** sends that exact copy; **Approve & schedule on Facebook** sends it to Meta's native scheduler, which runs independently of the app being open. Facebook supports times from 10 minutes to 75 days ahead. The input uses the device timezone and submits an ISO UTC timestamp. Calendar entries use the accepted scheduled date.
 
