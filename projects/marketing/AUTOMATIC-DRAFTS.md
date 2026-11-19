@@ -2,7 +2,7 @@
 
 The Marketing Agent can run without a daily prompt or an open browser. The brand owner opts in once with **Start automatic drafts**, selecting 1–3 drafts per day (default: two, about twelve hours apart). Pausing stops new work. Existing manual drafting and live research remain optional assignments below the automatic dashboard.
 
-The Hostinger Node process checks for work every minute, beginning ten seconds after startup. It signs an internal HTTP request with a short-lived HMAC. Express, Next proxy, and the route validate the exact worker route; the signature cannot open other private pages. All other authentication and origin requirements remain intact.
+The Hostinger Node process checks for work every minute, beginning ten seconds after startup. It signs an HTTPS request to the canonical application origin with a short-lived HMAC. This works when Hostinger provides a Unix socket rather than a TCP listening port. Express, Next proxy, and the route validate the exact worker route; the signature cannot open other private pages. All other authentication and origin requirements remain intact.
 
 A per-brand private hash authenticates narrow database worker RPCs. The worker key is HKDF-derived from existing server encryption material, owner identity and canonical origin; it is never stored in the database or sent to the browser. No Supabase service-role key or persistent owner login token is needed. Only the brand owner may enable or reconfigure the worker. If the encryption root or owner changes, save the agent settings again to re-register the current hash.
 

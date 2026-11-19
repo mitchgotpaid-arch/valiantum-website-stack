@@ -5,7 +5,7 @@ const { createApp } = require("./app");
     .then(({ app }) => {
       const server=app.listen(process.env.PORT || 3001, () => {
         console.log("Valiantum Projects ready");
-        const stop=require('./agent-worker.cjs').startAgentWorker(process.env,server.address().port);
+        const stop=require('./agent-worker.cjs').startAgentWorker(process.env);
         server.once('close',stop);
       });
     })
