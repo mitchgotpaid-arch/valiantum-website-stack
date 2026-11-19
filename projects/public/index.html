@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Valiantum Projects</title>
+    <link rel="stylesheet" href="/styles.css?v=8" />
+    <script src="/model.js?v=7" defer></script>
+    <script src="/app.js?v=8" defer></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <a class="brand" href="/"><img src="/logo.png" alt="Valiantum" /></a>
+        <div class="workspace-label">
+          <span class="workspace-icon">V</span>
+          <div>
+            Valiantum<span class="muted small">Personal workspace</span>
+          </div>
+          <span class="private-dot" title="Private">●</span>
+        </div>
+        <nav class="workspace-nav" aria-label="Workspace">
+          <button data-screen="today">◷ Today</button>
+          <button data-screen="ideas">✎ Ideas & notes</button>
+          <button data-screen="templates">▦ Templates</button>
+          <button data-screen="archive">↺ Archive</button>
+          <a class="marketing-nav" href="/marketing">◈ Marketing OS ↗</a>
+        </nav>
+        <div class="sidebar-heading">
+          YOUR PROJECTS<button
+            id="new-project"
+            class="icon"
+            aria-label="Create project"
+          >
+            +
+          </button>
+        </div>
+        <label class="mobile-project-picker">
+          <span class="sr-only">Project</span>
+          <select id="project-picker" aria-label="Project"></select>
+        </label>
+        <nav id="projects" aria-label="Projects"></nav>
+        <div class="sidebar-bottom">
+          <span class="lock">◈ &nbsp; Private workspace</span
+          ><a href="/api/export">↓ Export all projects</a
+          ><button id="logout">Sign out ↗</button>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div class="breadcrumb">
+            Workspace <span>/</span> <strong id="crumb">Projects</strong>
+          </div>
+          <div class="header-right">
+            <button id="undo-change" hidden>Undo last change</button
+            ><span id="save-state" role="status">All changes saved</span
+            ><span class="avatar">V</span>
+          </div>
+        </header>
+        <section id="workspace-view" class="workspace-view" hidden></section>
+        <section id="empty" class="empty" hidden>
+          <p class="eyebrow">MAKE ROOM FOR WHAT’S NEXT</p>
+          <h1>Your next great project<br />starts here.</h1>
+          <p class="muted">
+            One place for your plans, priorities, and progress.
+          </p>
+          <button class="primary" id="first-project">
+            + Create your first project
+          </button>
+        </section>
+        <section id="project-view" hidden>
+          <div class="project-heading">
+            <div>
+              <p class="eyebrow">VALIANTUM / PROJECTS</p>
+              <h1 id="project-name"></h1>
+              <p id="project-description" class="muted"></p>
+            </div>
+            <button id="project-settings">Project details ↗</button>
+          </div>
+          <div class="board-toolbar">
+            <div class="view-tabs">
+              <button class="active" id="board-tab">▦ &nbsp; Cards</button
+              ><button id="info-tab">ⓘ &nbsp; Overview</button>
+              <button id="completed-tab">✓ Completed</button>
+            </div>
+            <div class="board-actions">
+              <input
+                id="search"
+                type="search"
+                placeholder="Search cards…"
+                aria-label="Search cards"
+              /><button id="add-list">+ Add card</button>
+            </div>
+          </div>
+          <div id="stats" class="stats"></div>
+          <div id="board" class="board"></div>
+          <section id="completed-view" class="completed-view" hidden></section>
+          <section id="overview" class="overview" hidden></section>
+        </section>
+        <div
+          id="capture-menu"
+          class="capture-menu"
+          role="group"
+          aria-label="Quick capture"
+          hidden
+        >
+          <button id="capture-note" type="button">✎ New idea</button>
+          <button id="capture-todo" type="button">+ New to-do</button>
+        </div>
+        <button
+          id="quick-capture"
+          class="primary capture-button"
+          aria-expanded="false"
+          aria-controls="capture-menu"
+        >
+          + Capture idea
+        </button>
+        <p id="app-error" role="alert"></p>
+      </main>
+    </div>
+    <dialog id="editor">
+      <form id="editor-form">
+        <div class="dialog-header">
+          <p class="eyebrow" id="editor-kind"></p>
+          <button
+            type="button"
+            class="icon"
+            id="close-editor"
+            aria-label="Close dialog"
+          >
+            ×
+          </button>
+        </div>
+        <h2 id="editor-title" tabindex="-1"></h2>
+        <div id="editor-fields"></div>
+        <p id="editor-error" role="alert"></p>
+        <div id="editor-extra-actions" class="editor-extra-actions"></div>
+        <div class="dialog-actions">
+          <button type="button" id="delete-item" class="danger">Archive</button>
+          <div>
+            <button type="button" id="cancel-editor">Cancel</button
+            ><button type="submit" class="primary">Save changes</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

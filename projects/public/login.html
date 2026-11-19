@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in · Valiantum Projects</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/login.js" defer></script>
+  </head>
+  <body class="login-page">
+    <main class="login-panel">
+      <img class="login-logo" src="/logo.png" alt="Valiantum" />
+      <p class="eyebrow">YOUR PRIVATE WORKSPACE</p>
+      <h1>Great ideas.<br />Forward motion.</h1>
+      <p class="muted">
+        One sign-in for your Projects and Marketing workspace.
+      </p>
+      <form id="login">
+        <label
+          >Email<input
+            name="email"
+            type="email"
+            autocomplete="username"
+            required /></label
+        ><label
+          >Password<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <p id="error" role="alert"></p>
+        <button class="primary" type="submit">
+          Sign in to Projects <span>→</span>
+        </button>
+      </form>
+      <section id="email-signin" hidden>
+        <button id="send-code" class="secondary" type="button">Email me a sign-in link</button>
+        <div id="code-entry" hidden>
+          <label>Email sign-in link<input id="signin-code" type="url" autocomplete="off" maxlength="8000" /></label>
+          <button id="verify-code" class="primary" type="button">Use link &amp; choose one password</button>
+        </div>
+        <p id="code-message" role="status" class="muted"></p>
+      </section>
+      <div class="login-footer">
+        VALIANTUM <span>PROJECTS / PRIVATE ACCESS</span>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,1492 @@
+const M = ValiantumModel;
+const $ = (selector) => document.querySelector(selector);
+const el = (tag, className, text) => {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+const id = () => crypto.randomUUID();
+const button = (text, action, className = "") => {
+  const b = el("button", className, text);
+  b.type = "button";
+  b.onclick = action;
+  return b;
+};
+let state = M.normalizeWorkspace({ projects: [], revision: 0 }),
+  active = localStorage.getItem("valiantum-project"),
+  screen = localStorage.getItem("valiantum-screen") || "today",
+  view = "board",
+  editing = null,
+  busy = false,
+  blocked = false,
+  dragging = null,
+  undoState = null,
+  noteQuery = "",
+  notesView =
+    localStorage.getItem("valiantum-notes-view") === "archived"
+      ? "archived"
+      : "active";
+const marketingBriefs = new Map();
+const builtinTemplates = M.builtins();
+const project = () =>
+  state.projects.find((p) => p.id === active && !p.archived);
+const liveLists = (p) => p.lists.filter((l) => !l.archived);
+const liveCards = (l) => l.cards.filter((c) => !c.archived);
+const notify = (text) => {
+  $("#app-error").textContent = text;
+};
+async function api(url, options = {}) {
+  const response = await fetch(url, options);
+  if (response.status === 401) {
+    location.replace("/login");
+    throw Error("Session expired. Please sign in again.");
+  }
+  const data = await response.json();
+  if (!response.ok) {
+    if (response.status === 409 || response.status === 426) blocked = true;
+    throw Error(data.error || "Request failed.");
+  }
+  return data;
+}
+async function change(update, { undo = false } = {}) {
+  if (busy || blocked) {
+    notify(
+      blocked
+        ? "Reload this page before making more changes."
+        : "A save is in progress. Please try again.",
+    );
+    return false;
+  }
+  busy = true;
+  const before = M.copy(state);
+  $("#save-state").textContent = "Saving…";
+  notify("");
+  try {
+    update();
+    if (!M.validWorkspace(state))
+      throw Error("Check the fields and workspace limits before saving.");
+    const result = await api("/api/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Workspace-Version": "2",
+      },
+      body: JSON.stringify(state),
+    });
+    state.revision = result.revision;
+    undoState = undo ? null : before;
+    $("#save-state").textContent = "All changes saved";
+    return true;
+  } catch (error) {
+    state = before;
+    $("#save-state").textContent = "Changes not saved";
+    notify(error.message);
+    if ($("#editor").open) $("#editor-error").textContent = error.message;
+    return false;
+  } finally {
+    busy = false;
+    render();
+  }
+}
+function setScreen(value) {
+  screen = value;
+  localStorage.setItem("valiantum-screen", value);
+  render();
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+function selectProject(value) {
+  active = value;
+  screen = "board";
+  localStorage.setItem("valiantum-project", value);
+  localStorage.setItem("valiantum-screen", screen);
+  $("#search").value = "";
+  render();
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+function render() {
+  if (!project()) active = state.projects.find((p) => !p.archived)?.id;
+  $("#undo-change").hidden = !undoState;
+  document.querySelectorAll("[data-screen]").forEach((b) => {
+    b.classList.toggle("selected", b.dataset.screen === screen);
+    b.setAttribute(
+      "aria-current",
+      b.dataset.screen === screen ? "page" : "false",
+    );
+  });
+  const nav = $("#projects"),
+    picker = $("#project-picker");
+  nav.replaceChildren();
+  picker.replaceChildren();
+  const placeholder = el(
+    "option",
+    "",
+    screen === "board" ? "Choose project" : "Open a project…",
+  );
+  placeholder.value = "";
+  picker.append(placeholder);
+  state.projects
+    .filter((p) => !p.archived)
+    .forEach((p) => {
+      const b = button(
+        "",
+        () => selectProject(p.id),
+        p.id === active && screen === "board" ? "selected" : "",
+      );
+      b.append(el("span", "project-dot", "▦"), el("span", "", p.name));
+      nav.append(b);
+      const option = el("option", "", p.name);
+      option.value = p.id;
+      option.selected = screen === "board" && active === p.id;
+      picker.append(option);
+    });
+  picker.disabled = !state.projects.some((p) => !p.archived);
+  const p = project();
+  $("#empty").hidden = screen !== "board" || !!p;
+  $("#project-view").hidden = screen !== "board" || !p;
+  $("#workspace-view").hidden = screen === "board";
+  const titles = {
+    today: "Today",
+    ideas: "Ideas & notes",
+    templates: "Templates",
+    archive: "Archive",
+  };
+  $("#crumb").textContent =
+    screen === "board" ? p?.name || "Projects" : titles[screen] || "Today";
+  if (screen === "board" && p) renderBoard(p);
+  else if (screen !== "board") renderWorkspace();
+}
+function renderBoard(p) {
+  $("#project-name").textContent = p.name;
+  $("#project-description").textContent =
+    p.description || "A place for the ideas you want to move forward.";
+  const entries = M.workflowCards(p),
+    active = entries.filter(({ card }) => !card.completed && !card.archived);
+  $("#stats").replaceChildren();
+  for (const [stage, label] of [
+    ["in-motion", "in progress"],
+    ["plan", "in plan"],
+    ["open", "open"],
+    ["completed", "completed"],
+  ]) {
+    const count = entries.filter(
+        ({ card }) => M.taskStatus(card) === stage,
+      ).length,
+      span = el("span");
+    span.append(
+      el("strong", "", String(count)),
+      document.createTextNode(" " + label),
+    );
+    $("#stats").append(span);
+  }
+  $("#board").hidden = view !== "board";
+  $("#overview").hidden = view !== "info";
+  $("#completed-view").hidden = view !== "completed";
+  $("#board-tab").classList.toggle("active", view === "board");
+  $("#info-tab").classList.toggle("active", view === "info");
+  $("#completed-tab").classList.toggle("active", view === "completed");
+  const query = $("#search").value.toLowerCase(),
+    matches = (card) =>
+      [card.title, card.description, card.assignee]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+  $("#board").replaceChildren();
+  for (const [stage, label] of [
+    ["in-motion", "In progress"],
+    ["plan", "Plan"],
+    ["open", "Open"],
+  ]) {
+    const column = el("section", "list");
+    column.setAttribute("aria-label", label);
+    column.dataset.stage = stage;
+    const items = active.filter(({ card }) => M.taskStatus(card) === stage),
+      heading = el("div", "list-heading");
+    heading.append(
+      el("h3", "", label),
+      el("span", "count", String(items.length)),
+    );
+    column.append(heading);
+    for (const { list, card } of items.filter(({ card }) => matches(card))) {
+      const tile = cardTile(p, list, card);
+      tile.draggable = matchMedia("(pointer: fine)").matches;
+      tile.ondragstart = (e) => {
+        dragging = { project: p.id, list: list.id, card: card.id };
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", card.id);
+      };
+      tile.ondragend = () => {
+        dragging = null;
+        document
+          .querySelectorAll(".drag-over")
+          .forEach((n) => n.classList.remove("drag-over"));
+      };
+      tile.ondragover = (e) => {
+        if (dragging) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
+      tile.ondrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        moveCard(p.id, stage, card.id);
+      };
+      column.append(tile);
+    }
+    column.append(button("+ Add card", () => addCard(p, stage), "add-card"));
+    column.ondragover = (e) => {
+      if (dragging) {
+        e.preventDefault();
+        column.classList.add("drag-over");
+      }
+    };
+    column.ondragleave = (e) => {
+      if (!column.contains(e.relatedTarget))
+        column.classList.remove("drag-over");
+    };
+    column.ondrop = (e) => {
+      e.preventDefault();
+      column.classList.remove("drag-over");
+      moveCard(p.id, stage);
+    };
+    $("#board").append(column);
+  }
+  const completed = entries
+    .filter(({ card }) => card.completed && matches(card))
+    .sort((a, b) => (b.card.completedAt || 0) - (a.card.completedAt || 0));
+  const history = $("#completed-view");
+  history.replaceChildren(
+    el("h2", "", "Completed cards"),
+    el(
+      "p",
+      "muted",
+      "Finished cards are saved here automatically. Open one to review it or return it to Plan, Open, or In progress.",
+    ),
+  );
+  if (completed.length) {
+    const grid = el("div", "task-grid");
+    for (const { list, card } of completed) {
+      const tile = cardTile(p, list, card);
+      if (card.completedAt)
+        tile.append(
+          el(
+            "p",
+            "task-context",
+            "Completed " + new Date(card.completedAt).toLocaleDateString(),
+          ),
+        );
+      grid.append(tile);
+    }
+    history.append(grid);
+  } else
+    history.append(
+      emptyMessage(
+        query
+          ? "No completed cards match that search."
+          : "Completed cards will appear here when you mark them Complete.",
+      ),
+    );
+  renderOverview(p);
+}
+function addCard(p, stage = "plan") {
+  let list = liveLists(p)[0];
+  if (!list) {
+    notify("Restore an archived group before adding a card.");
+    return;
+  }
+  editCard(p.id, list.id, undefined, undefined, stage);
+}
+function cardTile(p, l, c, { context = false } = {}) {
+  const status = M.taskStatus(c);
+  const label = {
+    plan: "Plan",
+    open: "Open",
+    "in-motion": "In progress",
+    completed: "Completed",
+  }[status];
+  const item = el("article", "card status-" + status);
+  item.tabIndex = 0;
+  item.setAttribute("role", "button");
+  item.setAttribute("aria-label", "Edit " + c.title + " — " + label);
+  const badges = el("div", "card-badges");
+  badges.append(
+    el("span", "status-label", label),
+    el("span", "priority " + c.priority, c.priority),
+  );
+  item.append(badges, el("h3", "", c.title));
+  const brief = marketingBriefs.get(c.id);
+  if (brief) item.append(el("p", "marketing-status", "◈ Marketing · " + brief.status.toLowerCase().replaceAll("_", " ")));
+  if (c.completed) {
+    const mark = el("span", "completion-mark", "✓");
+    mark.setAttribute("aria-hidden", "true");
+    item.append(mark);
+  }
+  if (context) item.append(el("p", "task-context", p.name + " / " + l.name));
+  if (c.description) item.append(el("p", "card-preview", c.description));
+  const footer = el("div", "card-footer");
+  if (c.due)
+    footer.append(
+      el(
+        "span",
+        !c.completed && c.due < M.localDay() ? "overdue" : "",
+        "◷ " + formatDate(c.due),
+      ),
+    );
+  if (c.repeat !== "none") footer.append(el("span", "", `↻ ${c.repeat}`));
+  if (c.checklist.length)
+    footer.append(
+      el(
+        "span",
+        "",
+        `☑ ${c.checklist.filter((i) => i.done).length}/${c.checklist.length}`,
+      ),
+    );
+  if (c.assignee) footer.append(el("span", "owner", c.assignee));
+  if (footer.childNodes.length) item.append(footer);
+  item.onclick = () => editCard(p.id, l.id, c.id);
+  item.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      editCard(p.id, l.id, c.id);
+    }
+  };
+  return item;
+}
+function formatDate(day) {
+  return new Date(day + "T12:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+function moveCard(projectId, stage, beforeId) {
+  if (!dragging) return;
+  const from = dragging;
+  dragging = null;
+  if (from.card === beforeId) return;
+  change(() => {
+    const p = state.projects.find((p) => p.id === projectId),
+      source = p.lists.find((l) => l.id === from.list),
+      i = source.cards.findIndex((c) => c.id === from.card);
+    if (i < 0) return;
+    const [card] = source.cards.splice(i, 1);
+    const before = M.workflowCards(p).find((e) => e.card.id === beforeId),
+      target = before?.list || liveLists(p).at(-1) || source;
+    const at = target.cards.findIndex((c) => c.id === beforeId);
+    target.cards.splice(at < 0 ? target.cards.length : at, 0, card);
+    M.setStage(p, target, card, stage);
+  });
+}
+function renderOverview(p) {
+  const box = $("#overview");
+  box.replaceChildren(
+    el("h3", "", "About this project"),
+    el("p", "", p.description || "Add a description in Project details."),
+  );
+  box.append(el("h3", "", "Resources & links"));
+  const links = p.links
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!links.length)
+    box.append(el("p", "muted", "Add useful links in Project details."));
+  for (const link of links) {
+    try {
+      const url = new URL(link);
+      if (!["http:", "https:"].includes(url.protocol)) throw Error();
+      const a = el("a", "", link + " ↗");
+      a.href = url.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      box.append(a);
+    } catch {
+      box.append(el("p", "", link));
+    }
+  }
+  box.append(el("h3", "", "Project notes"));
+  const notes = state.notes.filter((n) => !n.archived && n.projectId === p.id);
+  notes.forEach((n) => box.append(noteTile(n)));
+  box.append(button("+ Add project note", () => editNote(null, p.id)));
+}
+function pageHeading(title, description, action) {
+  const h = el("div", "workspace-heading"),
+    text = el("div");
+  text.append(
+    el("p", "eyebrow", "YOUR PERSONAL WORKSPACE"),
+    el("h1", "", title),
+    el("p", "muted", description),
+  );
+  h.append(text);
+  if (action) h.append(action);
+  return h;
+}
+function emptyMessage(text) {
+  return el("p", "empty-message", text);
+}
+function section(title, items, render) {
+  const box = el("section", "dashboard-section");
+  box.append(el("h2", "", `${title} · ${items.length}`));
+  const grid = el("div", "task-grid");
+  for (const item of items) grid.append(render(item));
+  box.append(grid);
+  return box;
+}
+function renderWorkspace() {
+  const box = $("#workspace-view");
+  box.replaceChildren();
+  if (screen === "today") {
+    const today = M.localDay(),
+      tasks = M.activeTasks(state).filter((t) => !t.card.completed),
+      soon = new Date();
+    soon.setDate(soon.getDate() + 7);
+    const end = M.localDay(soon);
+    tasks.sort((a, b) =>
+      (a.card.due || "9999").localeCompare(b.card.due || "9999"),
+    );
+    box.append(
+      pageHeading(
+        "A little focus. Real progress.",
+        new Date().toLocaleDateString(undefined, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }),
+        button("+ Quick card", () => quickTask(), "primary"),
+      ),
+    );
+    const overdue = tasks.filter((t) => t.card.due && t.card.due < today),
+      due = tasks.filter((t) => t.card.due === today),
+      upcoming = tasks.filter((t) => t.card.due > today && t.card.due <= end),
+      noDate = tasks.filter((t) => !t.card.due);
+    const summary = el("div", "summary-grid");
+    [
+      [overdue.length, "Overdue"],
+      [due.length, "Due today"],
+      [tasks.length, "Active across projects"],
+    ].forEach(([n, t]) => {
+      const s = el("div", "summary-card");
+      s.append(el("strong", "", String(n)), el("span", "muted", t));
+      summary.append(s);
+    });
+    box.append(summary);
+    for (const [title, items] of [
+      ["Overdue", overdue],
+      ["Due today", due],
+      ["Next 7 days", upcoming],
+      ["No due date", noDate],
+    ])
+      if (items.length)
+        box.append(
+          section(title, items, (t) =>
+            cardTile(t.project, t.list, t.card, { context: true }),
+          ),
+        );
+    if (!overdue.length && !due.length)
+      box.append(
+        emptyMessage(
+          "Nothing overdue or due today. Capture an idea, plan your next task, or open a project.",
+        ),
+      );
+  } else if (screen === "ideas") {
+    box.append(
+      pageHeading(
+        "Room for your next idea.",
+        "A private notebook for business ideas, rough thoughts, and things to come back to.",
+        button("+ New note", () => editNote(), "primary"),
+      ),
+    );
+    const tabs = el("div", "view-tabs notes-tabs");
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Note views");
+    const archived = notesView === "archived";
+    for (const [value, label] of [
+      ["active", "Active notes"],
+      ["archived", "Archived notes"],
+    ]) {
+      const count = state.notes.filter(
+        (n) => n.archived === (value === "archived"),
+      ).length;
+      const tab = button(
+        `${label} (${count})`,
+        () => {
+          setNotesView(value);
+          noteQuery = "";
+          renderWorkspace();
+          document.querySelector("#notes-tab-" + value).focus();
+        },
+        value === notesView ? "active" : "",
+      );
+      tab.id = "notes-tab-" + value;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(value === notesView));
+      tab.setAttribute("aria-controls", "notes-panel");
+      tab.tabIndex = value === notesView ? 0 : -1;
+      tab.onkeydown = (event) => {
+        if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+          event.preventDefault();
+          const next =
+            event.key === "Home"
+              ? "active"
+              : event.key === "End"
+                ? "archived"
+                : value === "active"
+                  ? "archived"
+                  : "active";
+          setNotesView(next);
+          noteQuery = "";
+          renderWorkspace();
+          document.querySelector("#notes-tab-" + next).focus();
+        }
+      };
+      tabs.append(tab);
+    }
+    box.append(tabs);
+    const panel = el("section");
+    panel.id = "notes-panel";
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", "notes-tab-" + notesView);
+    box.append(panel);
+    if (archived)
+      panel.append(
+        el(
+          "p",
+          "archive-note-help",
+          "Your archived notes are kept here. Open any note to read the full text, or restore it to Active notes.",
+        ),
+      );
+    const search = el("form", "note-search"),
+      input = el("input");
+    input.type = "search";
+    input.placeholder = "Search ideas and notes…";
+    input.setAttribute("aria-label", "Search notes");
+    input.value = noteQuery;
+    const submit = el("button", "", "Search");
+    submit.type = "submit";
+    search.append(input, submit);
+    search.onsubmit = (e) => {
+      e.preventDefault();
+      noteQuery = input.value;
+      renderWorkspace();
+    };
+    panel.append(search);
+    const query = noteQuery.trim().toLowerCase();
+    const notes = state.notes
+      .filter(
+        (n) =>
+          n.archived === archived &&
+          [n.title, n.body].join(" ").toLowerCase().includes(query),
+      )
+      .sort(
+        (a, b) =>
+          Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt,
+      );
+    if (notes.length)
+      panel.append(
+        section(archived ? "Archived notes" : "Your notes", notes, (n) =>
+          noteTile(n),
+        ),
+      );
+    else
+      panel.append(
+        emptyMessage(
+          query
+            ? "No notes match that search."
+            : archived
+              ? "No archived notes yet. Notes you archive will stay here until you restore them."
+              : "Capture a thought now. You can link it to a project or turn it into a task later.",
+        ),
+      );
+  } else if (screen === "templates") {
+    box.append(
+      pageHeading(
+        "Start with a head start.",
+        "Reuse launch plans and content workflows. Saved project templates keep the structure and reset dates and progress.",
+      ),
+    );
+    const all = [
+      ...builtinTemplates,
+      ...state.templates.filter((t) => !t.archived),
+    ];
+    box.append(
+      section("Project templates", all, (t) => {
+        const tile = el("article", "note-card");
+        tile.append(
+          el("h3", "", t.name),
+          el(
+            "p",
+            "muted",
+            t.description || `${t.lists.length} lists ready to reuse`,
+          ),
+          button("Use template", () => editProject(null, t)),
+        );
+        if (state.templates.includes(t))
+          tile.append(
+            button("Archive template", () =>
+              change(
+                () =>
+                  (state.templates.find((x) => x.id === t.id).archived = true),
+              ),
+            ),
+          );
+        return tile;
+      }),
+    );
+    box.append(
+      emptyMessage(
+        "To save your own template, open a project → Project details → Save as template.",
+      ),
+    );
+  } else if (screen === "archive") {
+    box.append(
+      pageHeading(
+        "A place to put things down.",
+        "Archived items stay saved. Restore them whenever you need them.",
+      ),
+    );
+    let count = 0;
+    const add = (label, restore) => {
+      count++;
+      const row = el("div", "archive-row");
+      row.append(
+        el("span", "", label),
+        button("Restore", () => change(restore)),
+      );
+      box.append(row);
+    };
+    for (const p of state.projects) {
+      if (p.archived) {
+        add(
+          "Project · " + p.name,
+          () => (state.projects.find((x) => x.id === p.id).archived = false),
+        );
+        continue;
+      }
+      for (const l of p.lists) {
+        if (l.archived) {
+          add(
+            `${p.name} / List · ${l.name}`,
+            () =>
+              (state.projects
+                .find((x) => x.id === p.id)
+                .lists.find((x) => x.id === l.id).archived = false),
+          );
+          continue;
+        }
+        for (const c of l.cards)
+          if (c.archived)
+            add(
+              `${p.name} / Task · ${c.title}`,
+              () =>
+                (state.projects
+                  .find((x) => x.id === p.id)
+                  .lists.find((x) => x.id === l.id)
+                  .cards.find((x) => x.id === c.id).archived = false),
+            );
+      }
+    }
+    for (const n of state.notes)
+      if (n.archived)
+        add(
+          "Note · " + n.title,
+          () => (state.notes.find((x) => x.id === n.id).archived = false),
+        );
+    for (const t of state.templates)
+      if (t.archived)
+        add(
+          "Template · " + t.name,
+          () => (state.templates.find((x) => x.id === t.id).archived = false),
+        );
+    if (!count)
+      box.append(
+        emptyMessage(
+          "Nothing archived. Archive finished tasks or old projects to keep your workspace clear.",
+        ),
+      );
+  }
+}
+function noteTile(note) {
+  const tile = el("article", "note-card");
+  tile.append(
+    el("h3", "", (note.pinned ? "★ " : "") + note.title),
+    el("p", "note-preview", note.body || "No additional notes."),
+  );
+  const linked = state.projects.find((p) => p.id === note.projectId);
+  tile.append(
+    el(
+      "p",
+      "task-context",
+      (linked ? linked.name + " · " : "") +
+        new Date(note.updatedAt).toLocaleDateString(),
+    ),
+    button("Open note", () =>
+      note.archived ? readArchivedNote(note.id) : editNote(note.id),
+    ),
+  );
+  if (note.archived)
+    tile.append(button("Restore note", () => restoreNote(note.id)));
+  return tile;
+}
+function setNotesView(value) {
+  notesView = value;
+  localStorage.setItem("valiantum-notes-view", value);
+}
+async function restoreNote(noteId) {
+  return change(() => {
+    const note = state.notes.find((n) => n.id === noteId);
+    note.archived = false;
+    note.updatedAt = Date.now();
+  });
+}
+function readArchivedNote(noteId) {
+  const note = state.notes.find((n) => n.id === noteId);
+  if (!note) return;
+  const title = el("h3", "archived-note-title", note.title),
+    body = el("p", "archived-note-body", note.body || "No additional notes.");
+  const linked = state.projects.find((p) => p.id === note.projectId);
+  const fields = [title, body];
+  if (linked) fields.push(el("p", "field-help", "Project: " + linked.name));
+  openEditor(
+    "ARCHIVED NOTE",
+    "Kept for whenever you need it.",
+    fields,
+    () => restoreNote(noteId),
+    null,
+  );
+  $("#editor-form button[type=submit]").textContent = "Restore note";
+}
+function field(label, name, value = "", type = "text", max = 10000) {
+  const l = el("label", "", label),
+    input = el(type === "textarea" ? "textarea" : "input");
+  input.name = name;
+  input.value = value;
+  input.maxLength = max;
+  if (type !== "textarea") input.type = type;
+  l.append(input);
+  return l;
+}
+function select(label, name, value, options) {
+  const l = el("label", "", label),
+    s = el("select");
+  s.name = name;
+  s.setAttribute("aria-label", label);
+  for (const [value_, text] of options) {
+    const o = el("option", "", text);
+    o.value = value_;
+    o.selected = value_ === value;
+    s.append(o);
+  }
+  l.append(s);
+  return l;
+}
+function checkbox(label, name, value) {
+  const l = el("label", "checkbox-field"),
+    input = el("input");
+  input.type = "checkbox";
+  input.name = name;
+  input.checked = value;
+  l.append(input, document.createTextNode(label));
+  return l;
+}
+function openEditor(kind, title, fields, onSave, onArchive, extra = []) {
+  editing = { onSave, onArchive };
+  $("#editor-kind").textContent = kind;
+  $("#editor-title").textContent = title;
+  $("#editor-fields").replaceChildren(...fields);
+  $("#editor-error").textContent = "";
+  $("#delete-item").hidden = !onArchive;
+  $("#editor-extra-actions").replaceChildren(...extra);
+  $("#editor-form button[type=submit]").hidden = false;
+  $("#editor-form button[type=submit]").textContent = "Save changes";
+  $("#editor").showModal();
+  $("#editor").scrollTop = 0;
+  if (matchMedia("(max-width: 760px)").matches) $("#editor-title").focus();
+  else $("#editor-fields input")?.focus();
+}
+function editProject(projectId, chosenTemplate) {
+  const existing = state.projects.find((p) => p.id === projectId),
+    p = existing || {
+      name: "",
+      description: chosenTemplate?.description || "",
+      links: chosenTemplate?.links || "",
+    };
+  const name = field("Project name", "name", p.name, "text", 160);
+  name.querySelector("input").required = true;
+  const templates = [
+    ...builtinTemplates,
+    ...state.templates.filter((t) => !t.archived),
+  ];
+  const fields = [name];
+  if (!existing)
+    fields.push(
+      select(
+        "Start from template",
+        "template",
+        chosenTemplate?.id || "blank",
+        templates.map((t) => [t.id, t.name]),
+      ),
+    );
+  fields.push(
+    field("Description", "description", p.description, "textarea"),
+    field(
+      "Resources & links (one per line)",
+      "links",
+      p.links,
+      "textarea",
+      5000,
+    ),
+  );
+  if (!existing)
+    fields
+      .find((f) => f.querySelector("[name=template]"))
+      ?.querySelector("select")
+      .addEventListener("change", (event) => {
+        const template = templates.find((t) => t.id === event.target.value);
+        fields
+          .find((f) => f.querySelector("[name=description]"))
+          .querySelector("textarea").value = template?.description || "";
+        fields
+          .find((f) => f.querySelector("[name=links]"))
+          .querySelector("textarea").value = template?.links || "";
+      });
+  const extra = [];
+  if (existing) {
+    extra.push(
+      button("Save as template", async () => {
+        if (
+          await change(() => {
+            const current = state.projects.find((p) => p.id === projectId);
+            const template = M.projectFromTemplate(
+              current,
+              current.name + " template",
+            );
+            template.name = template.name.slice(0, 160);
+            state.templates.push(template);
+          })
+        ) {
+          $("#editor").close();
+          setScreen("templates");
+        }
+      }),
+    );
+  }
+  openEditor(
+    "PROJECT DETAILS",
+    existing ? "Make it your own." : "A new beginning.",
+    fields,
+    async (fd) => {
+      const name = fd.get("name").trim();
+      if (!name) throw Error("Enter a project name.");
+      const key = projectId || id();
+      const ok = await change(() => {
+        let current = state.projects.find((p) => p.id === projectId);
+        if (!current) {
+          current = M.projectFromTemplate(
+            templates.find((t) => t.id === fd.get("template")),
+            name,
+          );
+          current.id = key;
+          state.projects.push(current);
+        }
+        current.name = name;
+        current.description = fd.get("description");
+        current.links = fd.get("links");
+      });
+      if (ok) selectProject(key);
+      return ok;
+    },
+    existing
+      ? () =>
+          change(
+            () =>
+              (state.projects.find((p) => p.id === projectId).archived = true),
+          )
+      : null,
+    extra,
+  );
+}
+function editList(projectId, listId) {
+  const p = state.projects.find((p) => p.id === projectId),
+    list = p.lists.find((l) => l.id === listId);
+  const f = field("List name", "name", list?.name || "", "text", 100);
+  f.querySelector("input").required = true;
+  openEditor(
+    "BOARD LIST",
+    list ? "Edit list" : "Create a list",
+    [f],
+    (fd) => {
+      const name = fd.get("name").trim();
+      if (!name) throw Error("Enter a list name.");
+      return change(() => {
+        const p = state.projects.find((p) => p.id === projectId);
+        if (listId) p.lists.find((l) => l.id === listId).name = name;
+        else p.lists.push({ id: id(), name, archived: false, cards: [] });
+      });
+    },
+    list
+      ? () =>
+          change(
+            () =>
+              (state.projects
+                .find((p) => p.id === projectId)
+                .lists.find((l) => l.id === listId).archived = true),
+          )
+      : null,
+  );
+}
+function quickTask() {
+  const projects = state.projects.filter(
+    (p) => !p.archived && liveLists(p).length,
+  );
+  if (!projects.length) {
+    editProject();
+    return;
+  }
+  const picker = select(
+    "Project",
+    "project",
+    projects.some((p) => p.id === active) ? active : projects[0].id,
+    projects.map((p) => [p.id, p.name]),
+  );
+  openEditor(
+    "QUICK TASK",
+    "Where does it belong?",
+    [picker],
+    async (fd) => {
+      const p = state.projects.find((p) => p.id === fd.get("project"));
+      $("#editor").close();
+      editCard(p.id, liveLists(p)[0].id);
+      return false;
+    },
+    null,
+  );
+}
+function editCard(projectId, listId, cardId, noteId, initialStage = "plan") {
+  const p = state.projects.find((p) => p.id === projectId),
+    list = p.lists.find((l) => l.id === listId),
+    existing = list.cards.find((c) => c.id === cardId),
+    note = state.notes.find((n) => n.id === noteId),
+    c =
+      existing ||
+      M.task({
+        title: note?.title || "",
+        description: note?.body || "",
+        planned: initialStage === "plan",
+        inMotion: initialStage === "in-motion",
+      });
+  const title = field("Card title", "title", c.title, "text", 300);
+  title.querySelector("input").required = true;
+  const row = el("div", "field-row");
+  row.append(
+    select(
+      "Priority",
+      "priority",
+      c.priority,
+      ["Low", "Medium", "High"].map((x) => [x, x]),
+    ),
+    field("Due date", "due", c.due, "date"),
+  );
+  const stageField = select("Card stage", "status", M.taskStatus(c), [
+    ["plan", "Plan"],
+    ["open", "Open"],
+    ["in-motion", "In progress"],
+    ["completed", "Complete"],
+  ]);
+  const positionField = select("Position", "position", "", []);
+  function updatePositions() {
+    const stage = stageField.querySelector("select").value,
+      others = M.workflowCards(p).filter(
+        (e) =>
+          !e.card.archived &&
+          e.card.id !== cardId &&
+          M.taskStatus(e.card) === stage,
+      ),
+      positions = positionField.querySelector("select");
+    positions.replaceChildren();
+    for (const { card } of others) {
+      const option = el("option", "", "Before: " + card.title);
+      option.value = card.id;
+      positions.append(option);
+    }
+    const end = el("option", "", "End of category");
+    end.value = "";
+    positions.append(end);
+    const all = M.workflowCards(p).filter(
+        (e) => !e.card.archived && M.taskStatus(e.card) === stage,
+      ),
+      index = all.findIndex((e) => e.card.id === cardId);
+    positions.value = index >= 0 ? all[index + 1]?.card.id || "" : "";
+  }
+  updatePositions();
+  stageField.querySelector("select").onchange = updatePositions;
+  const checklist = el("div", "checklist");
+  checklist.append(el("h3", "small", "CHECKLIST"));
+  const rows = el("div");
+  function addCheck(item = { id: id(), text: "", done: false }) {
+    const r = el("div", "check-row"),
+      check = el("input"),
+      text = el("input"),
+      remove = button("×", () => r.remove(), "icon");
+    check.type = "checkbox";
+    check.checked = item.done;
+    check.setAttribute("aria-label", "Checklist item complete");
+    text.type = "text";
+    text.value = item.text;
+    text.maxLength = 500;
+    text.placeholder = "Checklist item";
+    text.setAttribute("aria-label", "Checklist item text");
+    remove.setAttribute("aria-label", "Remove checklist item");
+    r.dataset.id = item.id;
+    r.append(check, text, remove);
+    rows.append(r);
+  }
+  c.checklist.forEach(addCheck);
+  const add = button(
+    "+ Add checklist item",
+    () => {
+      if (rows.children.length < 100) addCheck();
+    },
+    "add-card",
+  );
+  checklist.append(rows, add);
+  const recurrenceHelp = el(
+    "p",
+    "field-help",
+    "Completing a recurring task creates the next occurrence from its due date (or today), with a fresh checklist. Overdue schedules advance one occurrence at a time.",
+  );
+  const fields = [
+    title,
+    stageField,
+    checklist,
+    field("Description & notes", "description", c.description, "textarea"),
+    row,
+    el(
+      "p",
+      "field-help",
+      "New cards start in Plan. Complete removes the card from the active categories and saves it in the Completed tab.",
+    ),
+    select("Repeat", "repeat", c.repeat, [
+      ["none", "Does not repeat"],
+      ["daily", "Daily"],
+      ["weekly", "Weekly"],
+      ["monthly", "Monthly"],
+    ]),
+    recurrenceHelp,
+    field("Assignee (optional)", "assignee", c.assignee, "text", 150),
+    positionField,
+  ];
+  if (note)
+    fields.push(
+      el(
+        "p",
+        "field-help",
+        "Your original note stays in Ideas & notes after this task is created.",
+      ),
+    );
+  openEditor(
+    "CARD DETAILS",
+    existing ? "Keep things moving." : "What’s next?",
+    fields,
+    (fd) => {
+      const title = fd.get("title").trim();
+      if (!title) throw Error("Enter a task title.");
+      if (!M.validDate(fd.get("due"))) throw Error("Choose a valid due date.");
+      return change(() => {
+        const p = state.projects.find((p) => p.id === projectId),
+          source = p.lists.find((l) => l.id === listId);
+        const beforeEntry = M.workflowCards(p).find(
+          (e) => e.card.id === fd.get("position"),
+        );
+        const target = beforeEntry?.list || source;
+        const previous = source.cards.find((c) => c.id === cardId);
+        const value = M.task({
+          ...c,
+          id: cardId || c.id,
+          title,
+          description: fd.get("description"),
+          priority: fd.get("priority"),
+          due: fd.get("due"),
+          assignee: fd.get("assignee"),
+          repeat: fd.get("repeat"),
+          repeatDay: fd.get("due")
+            ? fd.get("due") === c.due
+              ? c.repeatDay
+              : Number(fd.get("due").slice(-2))
+            : 0,
+          completed: previous?.completed || false,
+          inMotion: fd.get("status") === "in-motion",
+          planned: fd.get("status") === "plan",
+          checklist: Array.from(rows.children)
+            .map((r) => ({
+              id: r.dataset.id,
+              text: r.querySelector("input[type=text]").value.trim(),
+              done: r.querySelector("input[type=checkbox]").checked,
+            }))
+            .filter((i) => i.text),
+        });
+        if (previous)
+          source.cards = source.cards.filter((c) => c.id !== cardId);
+        const before = target.cards.findIndex(
+          (c) => c.id === fd.get("position"),
+        );
+        target.cards.splice(
+          before < 0 ? target.cards.length : before,
+          0,
+          value,
+        );
+        M.setStage(p, target, value, fd.get("status"));
+      });
+    },
+    existing
+      ? () =>
+          change(
+            () =>
+              (state.projects
+                .find((p) => p.id === projectId)
+                .lists.find((l) => l.id === listId)
+                .cards.find((c) => c.id === cardId).archived = true),
+          )
+      : null,
+    existing ? [button("◈ Send saved card to Marketing OS", () => {
+      $("#editor").close();
+      sendToMarketing(p, existing);
+    }, "secondary")] : [],
+  );
+}
+function editNote(noteId, projectId = "") {
+  const storedNote = state.notes.find((n) => n.id === noteId);
+  const note = {
+    ...(storedNote || { title: "", body: "", projectId, pinned: false }),
+  };
+  const draftKey = "valiantum-note-draft:" + (noteId || "new");
+  let restored = false;
+  try {
+    const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+    if (
+      draft &&
+      typeof draft.title === "string" &&
+      typeof draft.body === "string"
+    ) {
+      Object.assign(note, {
+        title: draft.title,
+        body: draft.body,
+        projectId:
+          typeof draft.projectId === "string"
+            ? draft.projectId
+            : note.projectId,
+        pinned: !!draft.pinned,
+      });
+      restored = true;
+    }
+  } catch {}
+  const title = field("Idea or note title", "title", note.title, "text", 300),
+    body = field("Notes", "body", note.body, "textarea", 20000);
+  body.querySelector("textarea").className = "note-body";
+  const options = [
+    ["", "Inbox — no project"],
+    ...state.projects
+      .filter((p) => !p.archived || p.id === note.projectId)
+      .map((p) => [p.id, p.name + (p.archived ? " (archived)" : "")]),
+  ];
+  const linkField = select(
+      "Link to project",
+      "projectId",
+      note.projectId,
+      options,
+    ),
+    pinnedField = checkbox("Pin this note", "pinned", note.pinned);
+  const draftStatus = el(
+    "p",
+    "field-help",
+    restored
+      ? "Recovered your unsaved draft from this device. Save to sync it."
+      : "Title is optional: your first line becomes the title. Save syncs this note; an unfinished draft stays on this device.",
+  );
+  const saveDraft = () => {
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          title: title.querySelector("input").value,
+          body: body.querySelector("textarea").value,
+          projectId: linkField.querySelector("select").value,
+          pinned: pinnedField.querySelector("input").checked,
+        }),
+      );
+      draftStatus.textContent =
+        "Draft saved on this device. Save changes to sync it across devices.";
+    } catch {
+      draftStatus.textContent =
+        "Device draft storage is unavailable. Keep this window open and save your note.";
+    }
+  };
+  for (const node of [title, body, linkField, pinnedField])
+    node.addEventListener("input", saveDraft);
+  const extra = [];
+  if (noteId)
+    extra.push(
+      button("Turn into a task", () => {
+        const projects = state.projects.filter(
+          (p) => !p.archived && liveLists(p).length,
+        );
+        if (!projects.length) {
+          $("#editor-error").textContent =
+            "Create a project with an active list first. Your note is saved.";
+          return;
+        }
+        const values = new FormData($("#editor-form"));
+        if (
+          values.get("title") !== storedNote.title ||
+          values.get("body") !== storedNote.body
+        ) {
+          $("#editor-error").textContent =
+            "Save your note changes before turning it into a task.";
+          return;
+        }
+        const picker = select(
+          "Project",
+          "project",
+          projects.some((p) => p.id === note.projectId)
+            ? note.projectId
+            : projects[0].id,
+          projects.map((p) => [p.id, p.name]),
+        );
+        $("#editor").close();
+        openEditor(
+          "IDEA TO TASK",
+          "Give this idea a next step.",
+          [picker],
+          async (fd) => {
+            const p = state.projects.find((p) => p.id === fd.get("project"));
+            $("#editor").close();
+            editCard(p.id, liveLists(p)[0].id, null, noteId);
+            return false;
+          },
+          null,
+        );
+      }),
+    );
+  openEditor(
+    "IDEAS & NOTES",
+    noteId ? "Keep the thought going." : "Catch it before it’s gone.",
+    [title, body, linkField, pinnedField, draftStatus],
+    async (fd) => {
+      const title =
+        fd.get("title").trim() ||
+        fd
+          .get("body")
+          .trim()
+          .split("\n")
+          .find((line) => line.trim())
+          ?.slice(0, 80);
+      if (!title) throw Error("Write a title or a note.");
+      const ok = await change(() => {
+        let current = state.notes.find((n) => n.id === noteId);
+        if (!current) {
+          current = { id: id(), createdAt: Date.now(), archived: false };
+          state.notes.push(current);
+        }
+        Object.assign(current, {
+          title,
+          body: fd.get("body"),
+          projectId: fd.get("projectId"),
+          pinned: fd.has("pinned"),
+          updatedAt: Date.now(),
+        });
+      });
+      if (ok) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {}
+        setNotesView("active");
+        setScreen("ideas");
+      }
+      return ok;
+    },
+    noteId
+      ? async () => {
+          const ok = await change(
+            () => (state.notes.find((n) => n.id === noteId).archived = true),
+          );
+          if (ok) {
+            setNotesView("archived");
+            noteQuery = "";
+            setScreen("ideas");
+          }
+          return ok;
+        }
+      : null,
+    extra,
+  );
+}
+$("#editor-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const submit = event.submitter;
+  submit.disabled = true;
+  try {
+    if (await editing.onSave(new FormData(event.target))) $("#editor").close();
+  } catch (error) {
+    $("#editor-error").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+};
+$("#delete-item").onclick = async () => {
+  if (await editing.onArchive()) $("#editor").close();
+};
+$("#close-editor").onclick = $("#cancel-editor").onclick = () =>
+  $("#editor").close();
+$("#new-project").onclick = $("#first-project").onclick = () => editProject();
+$("#project-settings").onclick = () => editProject(project().id);
+$("#add-list").onclick = () => addCard(project());
+$("#search").oninput = () => renderBoard(project());
+$("#project-picker").onchange = (e) => {
+  if (e.target.value) selectProject(e.target.value);
+};
+$("#board-tab").onclick = () => {
+  view = "board";
+  render();
+};
+$("#completed-tab").onclick = () => {
+  view = "completed";
+  render();
+};
+$("#info-tab").onclick = () => {
+  view = "info";
+  render();
+};
+function closeCaptureMenu({ focus = false } = {}) {
+  $("#capture-menu").hidden = true;
+  $("#quick-capture").setAttribute("aria-expanded", "false");
+  if (focus) $("#quick-capture").focus();
+}
+$("#quick-capture").onclick = () => {
+  const opening = $("#capture-menu").hidden;
+  $("#capture-menu").hidden = !opening;
+  $("#quick-capture").setAttribute("aria-expanded", String(opening));
+  if (opening) $("#capture-note").focus();
+};
+$("#capture-note").onclick = () => {
+  closeCaptureMenu();
+  editNote();
+};
+$("#capture-todo").onclick = () => {
+  closeCaptureMenu();
+  quickTask();
+};
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#capture-menu, #quick-capture"))
+    closeCaptureMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#capture-menu").hidden) {
+    event.preventDefault();
+    closeCaptureMenu({ focus: true });
+  }
+});
+document
+  .querySelectorAll("[data-screen]")
+  .forEach((b) => (b.onclick = () => setScreen(b.dataset.screen)));
+$("#undo-change").onclick = async () => {
+  if (!undoState) return;
+  const previous = M.copy(undoState);
+  await change(
+    () => {
+      const revision = state.revision;
+      state = { ...previous, revision };
+    },
+    { undo: true },
+  );
+};
+$("#logout").onclick = async () => {
+  try {
+    await api("/api/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    location.replace("/login");
+  } catch (e) {
+    notify(e.message);
+  }
+};
+api("/api/workspace")
+  .then((data) => {
+    state = M.normalizeWorkspace(data);
+    const requestedProject = new URLSearchParams(location.search).get("project");
+    if (state.projects.some(p => p.id === requestedProject && !p.archived)) {
+      active = requestedProject;
+      screen = "board";
+    }
+    render();
+    refreshMarketing();
+  })
+  .catch((e) => notify(e.message));
+
+async function marketingApi(path, options = {}) {
+  const response = await fetch("/marketing/api/projects/" + path, options);
+  const data = await response.json().catch(() => ({error: "Marketing OS is starting. Try again shortly."}));
+  if (!response.ok) {
+    const error = new Error(data.error || "Marketing OS is unavailable.");
+    error.loginUrl = data.loginUrl;
+    error.setup = data.code === "SETUP_REQUIRED";
+    throw error;
+  }
+  return data;
+}
+async function refreshMarketing() {
+  try {
+    const config = await api("/api/marketing/config");
+    if (!config.configured) return;
+    const data = await marketingApi("briefs");
+    marketingBriefs.clear();
+    data.briefs.forEach(brief => marketingBriefs.set(brief.sourceCardId, brief));
+    render();
+  } catch { /* The project workspace remains usable while Marketing is disconnected. */ }
+}
+window.addEventListener("focus", refreshMarketing);
+async function sendToMarketing(p, card) {
+  const section = el("div", "marketing-handoff");
+  section.append(el("p", "field-help", "Send a saved card as a marketing brief for human review. Your card stage stays under your control. This action does not generate AI content or publish anything."));
+  const feedback = el("p", "field-help", "Connecting to Marketing OS…");
+  section.append(feedback);
+  openEditor("MARKETING OS", "Turn a card into a brief.", [section], async () => false, null);
+  $("#editor-form button[type=submit]").hidden = true;
+  try {
+    const linked = marketingBriefs.get(card.id);
+    if (linked) {
+      feedback.textContent = "Already linked · " + linked.status.toLowerCase().replaceAll("_", " ");
+      const link = el("a", "primary", "Open marketing brief ↗");
+      link.href = "/marketing/content/" + linked.contentId;
+      section.append(link);
+      return;
+    }
+    const {brands} = await marketingApi("brands");
+    feedback.textContent = brands.length ? "Choose the brand and review the brief before sending." : "Create a brand in Marketing OS first, then return to this card.";
+    if (!brands.length) {
+      const link = el("a", "primary", "Open Marketing OS"); link.href = "/marketing/brands"; section.append(link); return;
+    }
+    const brand = select("Marketing brand", "brandId", brands[0].id, brands.map(b => [b.id,b.name]));
+    const title = field("Brief title", "marketingTitle", card.title.slice(0,200), "text", 200);
+    const snapshot = ["Project: " + p.name, p.description, "Card: " + card.title, card.description,
+      card.checklist.length ? "Checklist:\n" + card.checklist.map(i => (i.done ? "[x] " : "[ ] ") + i.text).join("\n") : "", p.links].filter(Boolean).join("\n\n");
+    const body = field("Marketing brief", "marketingBody", snapshot.slice(0,50000), "textarea", 50000);
+    const send = button("Send for review", async () => {
+      send.disabled = true;
+      feedback.textContent = "Sending…";
+      try {
+        const result = await marketingApi("briefs", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sourceProjectId:p.id,sourceCardId:card.id,sourceProjectName:p.name.slice(0,160),brandId:brand.querySelector("select").value,title:title.querySelector("input").value,body:body.querySelector("textarea").value})});
+        feedback.textContent = result.alreadyExists ? "This card already has a marketing brief." : "Brief sent. It is waiting for human review.";
+        const link = el("a", "primary", "Open marketing brief ↗"); link.href = result.reviewPath;
+        section.replaceChildren(feedback,link);
+        await refreshMarketing();
+      } catch(error) { feedback.textContent = error.message; send.disabled = false; }
+    }, "primary");
+    section.append(brand,title,body,send);
+  } catch(error) {
+    feedback.textContent = error.message;
+    const link = el("a", "primary", error.loginUrl ? "Connect Marketing account" : "Open Marketing setup");
+    link.href = error.loginUrl || "/marketing/projects";
+    section.append(link);
+  }
+}

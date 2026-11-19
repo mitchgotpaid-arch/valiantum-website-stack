@@ -1,0 +1,11 @@
+import {z} from 'zod';
+import {brandFactInputSchema} from './governance-schema';
+const timestamp=z.string().min(1).max(64).refine(value=>Number.isFinite(Date.parse(value)),'Reload this page before saving.');
+const lines=z.string().max(6000).transform(value=>value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean)).pipe(z.array(z.string().max(500)).max(30));
+export const voiceTrainingSchema=z.object({description:z.string().trim().max(2000),targetAudience:z.string().trim().max(2000),brandVoice:z.string().trim().max(4000),approvedExamples:z.string().trim().max(6000),avoidExamples:z.string().trim().max(6000),requiredDisclosures:lines,avoidedVocabulary:lines,updatedAt:timestamp});
+export type VoiceTrainingInput=z.infer<typeof voiceTrainingSchema>;
+export const trainedFactSchema=brandFactInputSchema.safeExtend({
+ updatedAt:timestamp.optional(),validUntil:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).refine(value=>!value||(Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value),'Choose a valid date.').transform(value=>value?value+'T23:59:59.999Z':null),ownerReviewed:z.boolean(),
+}).superRefine((value,context)=>{if(value.verificationStatus==='VERIFIED'&&!value.ownerReviewed)context.addIssue({code:'custom',path:['ownerReviewed'],message:'Confirm that you checked this fact against its source.'});});
+export const savedKnowledgeRecordSchema=z.object({kind:z.literal('brand_knowledge'),bodyHash:z.string().regex(/^[a-f0-9]{64}$/).optional(),version:z.string().max(60),fingerprint:z.string().regex(/^[a-f0-9]{64}$/),facts:z.array(z.object({id:z.uuid(),key:z.string().max(120),value:z.string().max(4000),sourceUrl:z.url().refine(value=>new URL(value).protocol==='https:'),reviewedAt:timestamp,validUntil:z.string().nullable()})).max(24),claimReferences:z.array(z.object({claim:z.string().max(1000),factIds:z.array(z.uuid()).max(8)})).max(20),issues:z.array(z.string().max(5000)).max(12),review:z.object({verdict:z.enum(['PASS','REVISE','NEEDS_EVIDENCE']),unsupportedClaims:z.array(z.string().max(1000)).max(10),voiceConcerns:z.array(z.string().max(1000)).max(10),ruleViolations:z.array(z.string().max(1000)).max(10)}).nullable().optional()});
+export type SavedKnowledgeRecord=z.infer<typeof savedKnowledgeRecordSchema>;
