@@ -1,0 +1,11 @@
+import 'server-only';
+import {requireUser} from './auth';
+import type {SupabaseClient} from '@supabase/supabase-js';
+export type FacebookDelivery={id:string;brand_id:string;content_id:string;page_id:string;page_name:string;body_snapshot:string;mode:'NOW'|'SCHEDULED';scheduled_for:string|null;attempt_count:number;status:'PROCESSING'|'SENT'|'REJECTED'|'UNKNOWN';external_post_id:string|null;error_code:string|null;created_at:string;completed_at:string|null};
+export class FacebookDataError extends Error{constructor(public readonly code:'SETUP_REQUIRED'|'NOT_PERMITTED'|'REVIEW_REQUIRED'|'DATABASE_ERROR'){super(code);}}
+function failure(code?:string){return new FacebookDataError(['42P01','PGRST202','PGRST205'].includes(code||'')?'SETUP_REQUIRED':code==='42501'?'NOT_PERMITTED':code==='23514'?'REVIEW_REQUIRED':'DATABASE_ERROR');}
+async function client(){const {supabase}=await requireUser();return supabase as unknown as SupabaseClient;}
+export async function listFacebookDeliveries(){const db=await client();const {data,error}=await db.from('facebook_deliveries').select('*').order('created_at',{ascending:false});if(error)throw failure(error.code);return data as FacebookDelivery[];}
+export async function getFacebookDelivery(contentId:string){const db=await client();const {data,error}=await db.from('facebook_deliveries').select('*').eq('content_id',contentId).maybeSingle();if(error)throw failure(error.code);return data as FacebookDelivery|null;}
+export async function claimFacebookDelivery(contentId:string,updatedAt:string,pageId:string,reviewed:boolean,scheduledFor:string|null){const db=await client();const {data,error}=await db.rpc('claim_facebook_delivery',{p_content_id:contentId,p_expected_updated_at:updatedAt,p_expected_page_id:pageId,p_reviewed:reviewed,p_scheduled_for:scheduledFor});if(error)throw failure(error.code);return data as {shouldExecute:boolean;delivery:FacebookDelivery;encryptedCredential?:string};}
+export async function completeFacebookDelivery(id:string,status:'SENT'|'REJECTED'|'UNKNOWN',postId:string|null,errorCode:string|null){const db=await client();const {error}=await db.rpc('complete_facebook_delivery',{p_delivery_id:id,p_status:status,p_external_post_id:postId,p_error_code:errorCode});if(error)throw failure(error.code);}

@@ -29,14 +29,15 @@ export async function generateDraftAction(_state: AgentDraftActionState, formDat
     const brand = await getBrand(parsed.data.brandId);
     if (!brand) return { error: "The selected Brand was not found." };
     const training=buildBrandKnowledge(brand,await getBrandGovernance(brand.id),parsed.data.brief);
-    if(!training.ready)return {error:"Complete this brand’s Knowledge setup before generating: "+training.checks.filter(check=>!check.passed).map(check=>check.label).join(", ")+". No API request was made."};
+
     reservationId = await reserveAiBudget(parsed.data.brandId, environment.OPENAI_DRAFT_MODEL, "BRAND_DRAFT_GENERATION", BRAND_DRAFT_RESERVATION_MICROS);
     const draft = await generateBrandDraft({
       contentType: parsed.data.contentType,
-      brief: parsed.data.brief,
+      brief: parsed.data.brief+"\nTarget channel: "+(parsed.data.channel||"FACEBOOK"),
       brand: training.context,
     }, environment);
-    contentId = await saveGeneratedDraft(parsed.data, draft, reservationId);
+    if(!training.ready){const issue="Brand setup is incomplete: "+training.checks.filter(check=>!check.passed).map(check=>check.label).join(', ');draft.requiresResearch=true;draft.researchNotes=[...draft.researchNotes,issue];if(draft.knowledgeRecord)draft.knowledgeRecord.issues=[...draft.knowledgeRecord.issues,issue];}
+    contentId = await saveGeneratedDraft({...parsed.data,channel:parsed.data.channel||'FACEBOOK'}, draft, reservationId);
     reservationId = undefined;
   } catch (error) {
     if (reservationId) await consumeFailedReservation(reservationId);

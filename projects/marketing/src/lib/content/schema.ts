@@ -44,6 +44,7 @@ export const briefingSocialDraftSchema = z.object({
 });
 
 export const aiDraftRequestSchema = z.object({
+  channel:channelSchema.optional(),
   brandId: z.uuid("Select a valid brand."),
   contentType: z.enum(["SOCIAL_POST", "CAPTION", "THREAD"]),
   brief: z.string().trim().min(10, "Give the Agent at least a short content brief.").max(4_000, "Brief must be 4,000 characters or fewer."),
@@ -88,6 +89,7 @@ export function reviseContentFromFormData(contentId: string, formData: FormData)
 
 export function aiDraftRequestFromFormData(formData: FormData) {
   return aiDraftRequestSchema.safeParse({
+    channel:formData.get("channel")||undefined,
     brandId: formData.get("brandId"),
     contentType: formData.get("contentType"),
     brief: formData.get("brief"),

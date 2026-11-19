@@ -24,6 +24,7 @@ export interface ContentQueueItem {
   sourceContentId: string | null;
   sourceUrls: string[];
   targetChannel: string | null;
+  scheduledFor?:string|null;
   createdAt: string;
   updatedAt: string;
 }

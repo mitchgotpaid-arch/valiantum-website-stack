@@ -16,6 +16,7 @@ export interface PublishingDestination {
   channel: PublishingChannel;
   publishMode: PublishingMode;
   connectionStatus: PublishingConnectionStatus;
+  externalAccountId:string|null;
   externalAccountName: string | null;
   lastValidatedAt: string | null;
 }
@@ -48,7 +49,7 @@ export class PublishingDataError extends Error {
   }
 }
 
-const selection = "id,brand_id,provider,channel,publish_mode,connection_status,external_account_name,last_validated_at" as const;
+const selection = "id,brand_id,provider,channel,publish_mode,connection_status,external_account_id,external_account_name,last_validated_at" as const;
 
 export async function listPublishingDestinations(brandId: string): Promise<PublishingDestination[]> {
   const { supabase } = await requireUser();
@@ -140,7 +141,7 @@ export async function completeFacebookUnpublishedTest(input: {
   if (error) throw mapPublishingError(error.code);
 }
 
-function toPublishingDestination(row: Pick<PublishingDestinationRow, "id" | "brand_id" | "provider" | "channel" | "publish_mode" | "connection_status" | "external_account_name" | "last_validated_at">): PublishingDestination {
+function toPublishingDestination(row: Pick<PublishingDestinationRow, "id" | "brand_id" | "provider" | "channel" | "publish_mode" | "connection_status" | "external_account_id" | "external_account_name" | "last_validated_at">): PublishingDestination {
   return {
     id: row.id,
     brandId: row.brand_id,
@@ -148,6 +149,7 @@ function toPublishingDestination(row: Pick<PublishingDestinationRow, "id" | "bra
     channel: parseChannel(row.channel),
     publishMode: parseMode(row.publish_mode),
     connectionStatus: parseStatus(row.connection_status),
+    externalAccountId:row.external_account_id,
     externalAccountName: row.external_account_name,
     lastValidatedAt: row.last_validated_at,
   };

@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import "server-only";
 import { requireUser } from "@/data/auth";
 import type { AiDraftRequestInput } from "@/lib/content/schema";
@@ -61,24 +62,12 @@ export async function canGenerateForBrand(brandId: string): Promise<boolean> {
 
 export async function saveGeneratedDraft(input: AiDraftRequestInput, draft: GeneratedDraft, reservationId: string): Promise<string> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("create_ai_content_for_review", {
-    p_brand_id: input.brandId,
-    p_title: draft.title,
-    p_content_type: input.contentType,
-    p_body: draft.body,
-    p_model: draft.model,
-    p_input_tokens: draft.inputTokens,
-    p_output_tokens: draft.outputTokens,
-    p_estimated_cost_micros: draft.estimatedCostMicros,
-    p_latency_ms: draft.latencyMs,
-    p_requires_research: draft.requiresResearch,
-    p_research_notes: draft.knowledgeRecord ? [...draft.researchNotes,"VALIANTUM_KNOWLEDGE_V1:"+JSON.stringify(draft.knowledgeRecord)] : draft.researchNotes,
-    p_reservation_id: reservationId,
-  });
+  const result={title:draft.title,contentType:input.contentType,body:draft.body,model:draft.model,inputTokens:draft.inputTokens,outputTokens:draft.outputTokens,estimatedCostMicros:draft.estimatedCostMicros,latencyMs:draft.latencyMs,requiresResearch:draft.requiresResearch,researchNotes:draft.knowledgeRecord?[...draft.researchNotes,"VALIANTUM_KNOWLEDGE_V1:"+JSON.stringify(draft.knowledgeRecord)]:draft.researchNotes};
+  const {data,error}=await (supabase as unknown as SupabaseClient).rpc('create_ai_channel_draft',{p_brand_id:input.brandId,p_channel:input.channel||'FACEBOOK',p_result:result,p_reservation_id:reservationId});
   if (error?.code === "42501") throw new AiDataError("NOT_PERMITTED");
   if (error?.code === "23514") throw new AiDataError("INVALID_RESULT");
   if (error) throw new AiDataError("DATABASE_ERROR");
-  return data;
+  return data as string;
 }
 
 export async function saveGeneratedDailyBriefing(brandId: string, briefing: GeneratedDailyBriefing, reservationId: string): Promise<string> {
