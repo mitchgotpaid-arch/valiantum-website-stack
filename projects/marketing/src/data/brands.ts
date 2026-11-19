@@ -41,7 +41,7 @@ function logDatabaseError(operation: string, error: { code?: string; message?: s
 const selection = "id,name,slug,description,website_url,industry,target_audience,brand_voice,marketing_objectives,content_pillars,freeform_instructions,agent_profile,logo_path,autonomy,publishing_enabled,updated_at" as const;
 const logoBucket = "brand-assets";
 
-type BrandRow = {
+export type BrandRow = {
   id: string; name: string; slug: string; description: string; website_url: string | null; industry: string | null;
   target_audience: string | null; brand_voice: string | null; marketing_objectives: unknown; content_pillars: unknown;
   freeform_instructions: string; agent_profile: unknown; logo_path: string | null; autonomy: BrandSummary["autonomy"];
@@ -53,7 +53,7 @@ function toStringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
 }
 
-function toSummary(row: BrandRow, logoUrl: string | null = null): BrandSummary {
+export function toSummary(row: BrandRow, logoUrl: string | null = null): BrandSummary {
   return {
     id: row.id, name: row.name, slug: row.slug, description: row.description, websiteUrl: row.website_url,
     industry: row.industry, targetAudience: row.target_audience, brandVoice: row.brand_voice,

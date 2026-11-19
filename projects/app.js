@@ -42,6 +42,12 @@ async function createApp(env = process.env, integrations = {}) {
       'X-Robots-Tag': 'noindex, nofollow',
     });
     if (production) res.set('Strict-Transport-Security', 'max-age=31536000');
+    // This single endpoint accepts only a short-lived server HMAC; it does not
+    // grant a browser session or bypass authentication for any other route.
+    if(req.path==='/marketing/api/agent/tick'){
+      if(req.method!=='POST'||!require('./marketing/src/lib/agent/worker-auth.cjs').verifyWorker(req.headers,env))return res.status(401).json({error:'Worker authentication required.'});
+      return Promise.resolve(marketingHandler(req,res)).catch(next);
+    }
     let session = sessions.get(readSessionToken(req));
     if (ownerAuth.enabled) {
       try {req.user=await ownerFor(req,res).user();session=req.user?{expires:Date.now()+SESSION_AGE}:null;}

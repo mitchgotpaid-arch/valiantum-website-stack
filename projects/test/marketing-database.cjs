@@ -78,7 +78,43 @@ await db.query('select public.mark_social_connection_attention($1,$2)',[socialId
 assert.equal((await db.query('select connection_status from public.brand_social_connections where id=$1',[socialId])).rows[0].connection_status,'ACTION_REQUIRED');
 await db.query('select public.disconnect_social_connection($1)',[socialId]);
 await db.exec('reset role');assert.equal((await db.query('select * from private.social_connection_tokens where connection_id=$1',[socialId])).rows.length,0);
+// Autonomous jobs: owner opt-in, private worker capability, leases and budget.
+const workerKey='k'.repeat(43),workerHash=require('node:crypto').createHash('sha256').update(workerKey).digest('hex');
+await actor(viewer);await assert.rejects(db.query('select public.configure_draft_agent($1,true,2,$2)',[brand,workerHash]),/not permitted/);
+await actor(owner);await db.query('select public.configure_draft_agent($1,true,2,$2)',[brand,workerHash]);
+await assert.rejects(db.query('select * from private.agent_worker_keys'),/permission denied/);
+await assert.rejects(db.query('update public.brand_agent_settings set enabled=false'),/permission denied/);
+await actor(other);assert.equal((await db.query('select * from public.brand_agent_settings')).rows.length,0);
+await actor('','anon');
+assert.equal((await db.query('select public.claim_draft_agent_work($1) as work',['z'.repeat(43)])).rows[0].work,null);
+let job=(await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work;assert.equal(job.brand.id,brand);
+assert.equal((await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work,null);
+await assert.rejects(db.query('select public.reserve_draft_agent_run($1,$2,$3)',['z'.repeat(43),job.runId,'gpt-6-luna']),/not permitted/);
+await db.query('select public.reserve_draft_agent_run($1,$2,$3)',[workerKey,job.runId,'gpt-6-luna']);
+await assert.rejects(db.query('select public.reserve_draft_agent_run($1,$2,$3)',[workerKey,job.runId,'gpt-6-luna']),/already reserved/);
+const result={status:'SUCCEEDED',reason:'DRAFT_READY',summary:'A useful topic chosen automatically',plan:{topic:'Fresh angle',channel:'FACEBOOK'},channel:'FACEBOOK',title:'Agent-written draft',body:'An evergreen community conversation.',model:'gpt-6-luna',inputTokens:100,outputTokens:100,estimatedCostMicros:1000,latencyMs:10,researchNotes:['Human review is still required.']};
+const agentDraft=(await db.query('select public.finish_draft_agent_run($1,$2,$3) as id',[workerKey,job.runId,result])).rows[0].id;
+assert.equal((await db.query('select public.finish_draft_agent_run($1,$2,$3) as id',[workerKey,job.runId,result])).rows[0].id,agentDraft);
+await actor(owner);const generated=(await db.query('select * from public.content_items where id=$1',[agentDraft])).rows[0];assert.equal(generated.status,'NEEDS_REVIEW');assert.equal(generated.requires_human_approval,true);assert.equal(generated.media_policy_satisfied,false);assert.equal(generated.target_channel,'FACEBOOK');
+// Incomplete knowledge can close a run without spending or reserving anything.
+await db.exec('reset role');await db.query("update public.brand_agent_settings set next_run_at=now()-interval '1 minute' where brand_id=$1",[brand]);
+await actor('','anon');job=(await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work;
+await db.query('select public.finish_draft_agent_run($1,$2,$3)',[workerKey,job.runId,{status:'BLOCKED',reason:'NEEDS_KNOWLEDGE',summary:'Teach this brand once.'}]);
+await db.exec('reset role');assert.equal((await db.query('select reservation_id from public.agent_runs where id=$1',[job.runId])).rows[0].reservation_id,null);
+// A restart never retries paid generation for an expired run.
+await db.query("update public.brand_agent_settings set next_run_at=now()-interval '1 minute' where brand_id=$1",[brand]);await actor('','anon');job=(await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work;await db.query('select public.reserve_draft_agent_run($1,$2,$3)',[workerKey,job.runId,'gpt-6-luna']);
+await db.exec('reset role');await db.query("update public.agent_runs set lease_until=now()-interval '1 minute' where id=$1",[job.runId]);await actor('','anon');assert.equal((await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work,null);
+await db.exec('reset role');assert.equal((await db.query('select status,reason from public.agent_runs where id=$1',[job.runId])).rows[0].reason,'INTERRUPTED');
+assert.equal((await db.query("select count(*)::int as n from public.ai_budget_reservations where status='RESERVED'")).rows[0].n,0);
+// Budget exhaustion is checked atomically before any paid generation.
+await db.exec('reset role');await db.query('update public.system_settings set monthly_ai_budget_cents=1');await db.query("update public.brand_agent_settings set next_run_at=now()-interval '1 minute' where brand_id=$1",[brand]);
+await actor('','anon');job=(await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work;await assert.rejects(db.query('select public.reserve_draft_agent_run($1,$2,$3)',[workerKey,job.runId,'gpt-6-luna']),/budget exceeded/);await db.query('select public.finish_draft_agent_run($1,$2,$3)',[workerKey,job.runId,{status:'BLOCKED',reason:'BUDGET_LIMIT'}]);
+await db.exec('reset role');await db.query('update public.system_settings set monthly_ai_budget_cents=1500');
+// Five unreviewed agent drafts stop queue growth without another reservation.
+for(let i=0;i<4;i++){await actor(owner);const id=(await db.query("select public.create_content_for_review($1,'Agent queue draft','SOCIAL_POST','Copy awaiting review') as id",[brand])).rows[0].id;await db.exec('reset role');await db.query("insert into public.agent_runs(brand_id,status,content_id) values($1,'SUCCEEDED',$2)",[brand,id]);}
+await db.query("update public.brand_agent_settings set next_run_at=now()-interval '1 minute' where brand_id=$1",[brand]);await actor('','anon');assert.equal((await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work.blocked,true);
+await actor(owner);await db.query('select public.configure_draft_agent($1,false,2,$2)',[brand,workerHash]);await actor('','anon');assert.equal((await db.query('select public.claim_draft_agent_work($1) as work',[workerKey])).rows[0].work,null);
 await actor('','anon');await assert.rejects(send(),/permission denied/);
-for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs','brand_facts','brand_sources','brand_rules','brand_social_connections'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
+for(const table of ['brands','content_items','approvals','audit_logs','ai_usage','project_card_briefs','brand_facts','brand_sources','brand_rules','brand_social_connections','brand_agent_settings','agent_runs'])await assert.rejects(db.query('select * from public.'+table),/permission denied/);
 
 await db.close();console.log('PASS: complete migration chain, role/tenant boundaries, private credentials/assets, direct-write denial, idempotency, review defaults and live progress.');})().catch(e=>{console.error(e);process.exitCode=1;});

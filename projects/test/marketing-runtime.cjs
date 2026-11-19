@@ -26,6 +26,7 @@ const timedFetch=(url,options={})=>fetch(url,{...options,signal:AbortSignal.time
   for(const path of ['/marketing/api/projects/brands','/marketing/api/projects/briefs']){
    const response=await timedFetch(base+path,{headers:{cookie},redirect:'manual'});assert.equal(response.status,401);assert.equal((await response.json()).loginUrl,'/marketing/login');
   }
+  const workerDenied=await timedFetch(base+'/marketing/api/agent/tick',{method:'POST',headers:{cookie,origin},redirect:'manual'});assert.equal(workerDenied.status,401);
   console.log('PASS: configured Marketing runtime redirects missing sessions, returns API 401s, uses canonical URLs and nonces every bootstrap script.');
  }finally{await new Promise(resolve=>server.close(resolve));await service.close();}
 })().then(()=>process.exit(0)).catch(error=>{console.error(error.name+': '+error.message);process.exit(1);});

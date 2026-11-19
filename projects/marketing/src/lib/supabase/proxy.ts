@@ -1,9 +1,15 @@
+import {verifyWorker} from '@/lib/agent/worker-auth.cjs';
 import {authCookieOptions} from './cookie-options';
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseEnv, getPublicEnv } from "@/lib/env";
 
 export async function updateSession(request: NextRequest) {
+  const workerPath=request.nextUrl.pathname.replace(/^\/marketing(?=\/|$)/,'');
+  if(workerPath==='/api/agent/tick'){
+    if(request.method!=='POST'||!verifyWorker(Object.fromEntries(request.headers),process.env))return NextResponse.json({error:'Worker authentication required.'},{status:401});
+    return NextResponse.next({request});
+  }
   if (!hasSupabaseEnv()) return NextResponse.next({ request });
 
   const env = getPublicEnv();
